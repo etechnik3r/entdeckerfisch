@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <!-- WICHTIG für Mobilgeräte: Das Spiel füllt den ganzen Bildschirm aus
+         und lässt sich nicht durch Zoomen oder Scrollen "kaputt machen". -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a4d8c">
+    <title>Entdeckerfisch 🐟 – Jonfi Studios</title>
+    <!-- Der Fisch als Browser-Symbol (Favicon) – direkt eingebettet, keine extra Datei nötig -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐟</text></svg>">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ============================================================
+         DAS SPIELFELD (Canvas)
+         Hier wird das komplette Spiel gezeichnet: Wasser, Fisch,
+         Hindernisse, Garnelen, Gegner, Boote und das Ziel.
+         ============================================================ -->
+    <canvas id="spielfeld"></canvas>
+
+    <!-- ============================================================
+         HUD = "Head-Up-Display"
+         Die Anzeigen, die WÄHREND des Spielens sichtbar sind:
+         Garnelen-Zähler, Fortschrittsbalken und die Pause-Taste.
+         ============================================================ -->
+    <div id="hud" class="versteckt">
+        <!-- Links oben: Wie viele Garnelen wurden gefressen? -->
+        <div id="garnelen-anzeige">🦐 <span id="garnelen-zahl">0</span></div>
+
+        <!-- Mitte oben: Fortschrittsbalken bis zum Ziel der Welt -->
+        <div id="fortschritt-leiste">
+            <div id="fortschritt-balken"></div>
+            <div id="fortschritt-fisch">🐟</div>
+            <div id="fortschritt-ziel">🌀</div>
+        </div>
+
+        <!-- Rechts oben: Pause-Knopf (groß genug für Kinderfinger) -->
+        <button id="pause-knopf" class="runder-knopf" aria-label="Pause">⏸️</button>
+    </div>
+
+    <!-- ============================================================
+         START-BILDSCHIRM
+         Wird beim Laden des Spiels angezeigt. Großer Play-Knopf,
+         Zahnrad für Einstellungen – im Stil der Jonfi-Studios-Spiele.
+         ============================================================ -->
+    <div id="start-schirm" class="overlay">
+        <div class="overlay-inhalt">
+            <div class="titel-fisch">🐟</div>
+            <h1>Entdecker&shy;fisch</h1>
+            <p class="untertitel">Schwimm los und entdecke das Meer!</p>
+            <button id="start-knopf" class="grosser-knopf">▶️ Los geht's!</button>
+            <button id="einstellungen-knopf" class="runder-knopf zahnrad" aria-label="Einstellungen">⚙️</button>
+            <p class="studio-name">✨ Jonfi Studios ✨</p>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EINSTELLUNGEN
+         Zahnrad-Menü: Ton an/aus und Schwimm-Tempo.
+         Die Auswahl wird im Browser gespeichert (localStorage).
+         ============================================================ -->
+    <div id="einstellungen-schirm" class="overlay versteckt">
+        <div class="overlay-inhalt">
+            <h2>⚙️ Einstellungen</h2>
+
+            <div class="einstellung-zeile">
+                <span>Ton</span>
+                <button id="ton-knopf" class="runder-knopf">🔊</button>
+            </div>
+
+            <div class="einstellung-zeile">
+                <span>Tempo</span>
+                <div class="tempo-auswahl">
+                    <button id="tempo-langsam" class="tempo-knopf">🐢 Gemütlich</button>
+                    <button id="tempo-normal" class="tempo-knopf aktiv">🐟 Normal</button>
+                    <button id="tempo-schnell" class="tempo-knopf">🚀 Flott</button>
+                </div>
+            </div>
+
+            <button id="einstellungen-zurueck" class="grosser-knopf">✅ Fertig</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PAUSE-BILDSCHIRM
+         Erscheint, wenn die Pause-Taste gedrückt wurde.
+         ============================================================ -->
+    <div id="pause-schirm" class="overlay versteckt">
+        <div class="overlay-inhalt">
+            <h2>⏸️ Pause</h2>
+            <button id="weiter-knopf" class="grosser-knopf">▶️ Weiter</button>
+            <button id="neustart-knopf" class="grosser-knopf zweitrangig">🔄 Von vorn</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         WELT-GESCHAFFT-BILDSCHIRM
+         Erscheint, wenn der Fisch durch das Ziel geschwommen ist.
+         ============================================================ -->
+    <div id="welt-geschafft-schirm" class="overlay versteckt">
+        <div class="overlay-inhalt">
+            <div class="titel-fisch">🎉</div>
+            <h2 id="welt-geschafft-titel">Welt geschafft!</h2>
+            <p id="welt-geschafft-text" class="untertitel">Weiter zur nächsten Welt …</p>
+            <button id="naechste-welt-knopf" class="grosser-knopf">➡️ Weiterschwimmen</button>
+        </div>
+    </div>
+
+    <!-- Die Skripte in der richtigen Reihenfolge laden:
+         1. config.js  = alle einstellbaren Zahlen (Geschwindigkeit, Spawn-Raten …)
+         2. welten.js  = die Level/Welten und das Leveldesign (Bau-Muster)
+         3. spiel.js   = die eigentliche Spiel-Logik (Bewegung, KI, Kollision) -->
+    <script src="config.js"></script>
+    <script src="welten.js"></script>
+    <script src="spiel.js"></script>
+</body>
+</html>
