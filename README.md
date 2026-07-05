@@ -3,9 +3,11 @@
 Ein kindgerechtes Browser-Spiel von **✨ Jonfi Studios ✨** – für Kinder ab ca. 4 Jahren,
 komplett für Smartphones und Touch-Steuerung optimiert.
 
-Ein kleiner Fisch schwimmt immer weiter durch bunte Unterwasser-Welten:
-Garnelen fressen 🦐, wachsen ✨, Angreifern entkommen 🦈, Booten ausweichen 🚤
-und am Ende jeder Welt durch den Ziel-Strudel 🌀 schwimmen.
+Ein kleiner Fisch schwimmt von ganz unten **nach oben zur Wasseroberfläche** –
+das ist das Ziel! Unterwegs: Garnelen fressen 🦐, wachsen ✨, dem Hai entkommen 🦈,
+an Abzweigungen den Weg wählen 🪨 und manchmal durch **dunkle Höhlen** tauchen 🕳️.
+Oben angekommen springt der Fisch einmal hoch aus dem Wasser – platsch! – und
+weiter geht's in die nächste von **24 Welten**.
 
 ## ▶️ Spielen
 
@@ -25,29 +27,43 @@ python3 -m http.server 8000
 
 | Geste | Wirkung |
 |---|---|
-| Finger auflegen & bewegen | Der Fisch schwimmt sanft zur Höhe des Fingers |
-| Kurz tippen (über/unter dem Fisch) | Kleiner Ausweich-Hüpfer nach oben/unten |
-| Pfeiltasten ↑ ↓ (am Computer) | Zum Testen ohne Touchscreen |
+| Finger auflegen & bewegen | Der Fisch schwimmt sanft nach links/rechts zum Finger (nach oben schwimmt er von allein!) |
+| Kurz tippen (links/rechts vom Fisch) | Kleiner Ausweich-Hüpfer zur Seite |
+| Pfeiltasten ← → (am Computer) | Zum Testen ohne Touchscreen |
 
 ## 🧩 Spielmechanik
 
+- **Das Ziel ist die Wasseroberfläche 🌊**: Je höher der Fisch steigt, desto
+  heller wird das Wasser. Oben springt er aus dem Wasser, taucht wieder ein –
+  und man darf entscheiden, ob man weiterspielt.
 - **Garnelen 🦐** geben einen kurzen **Geschwindigkeits-Boost**. Nach 8 Garnelen
   **wächst** der Fisch sichtbar.
-- **Angreifer 🦈** verfolgen den Fisch hartnäckig. Abhängen durch Boosts oder
-  kluge Wegwahl (Angreifer werden in Hindernissen stark gebremst!) →
-  *„Angreifer abgehängt!"*. Wird man erwischt, gibt es **kein Game Over** –
-  der Fisch schrumpft nur eine Stufe und bekommt einen Flucht-Boost.
-- **Boote 🚤** werfen einen Schatten ins Wasser. Wer tief genug schwimmt, ist sicher.
-- **Ziel 🌀**: Nach genug Strecke erscheint der Strudel – hindurchschwimmen
-  führt in die **nächste Welt** (neues Design, neue Hindernis-Mischung).
+- **Wasserpflanzen 🌿** sind weich: Sie **bremsen nur ein bisschen**, tun aber
+  nicht weh. Felsen stoppen den Fisch sanft.
+- **Der Hai 🦈** ist eine richtige, große gezeichnete Figur (kein Mini-Emoji!)
+  und jagt den Fisch von unten. Abhängen durch Boosts oder kluge Wegwahl
+  (der Hai wird in Hindernissen stark gebremst!) → *„Hai abgehängt!"*.
+  Wird man erwischt, gibt es **kein Game Over** – der Fisch schrumpft nur eine
+  Stufe und bekommt einen Flucht-Boost.
+- **Abzweigungen 🪨**: Felswände teilen den Weg in links / geradeaus / rechts.
+  Der Fisch schwimmt den gewählten Weg entlang – die anderen ziehen unten vorbei.
+- **Höhlen 🕳️**: Einer der Wege kann ein dunkles Höhlen-Loch sein (erkennbar an
+  den vielen Steinen). In der Höhle wird es **dunkel**, es gibt nur Steine und
+  kaum Pflanzen, andere Tiere schwimmen herum – und der **Hai findet einen viel
+  schneller**! Nach ein paar Bildschirmen geht es wieder hinaus ins Helle.
+- **24 Welten 🌍**: Vom Korallenriff über die Schildkrötenbucht und das Eismeer
+  bis zum Zaubermeer – jede Welt hat eigene Farben, eigene Hindernisse und
+  eigene **Hintergrund-Tiere**, die harmlos mitschwimmen (in der Schildkrötenwelt
+  Schildkröten 🐢, in der Tiefsee Tintenfische 🦑 …). Über sie schwimmen ist
+  völlig ungefährlich – sie sind nur schöne Kulisse.
 
 ## 🗂️ Dateien – wo ändere ich was?
 
 | Datei | Inhalt |
 |---|---|
-| `config.js` | **Alle Stellschrauben**: Geschwindigkeiten, Spawn-Raten, Größen, Boost-Dauer … Hier zuerst schauen, wenn du das Spiel leichter/schwerer machen willst! |
-| `welten.js` | Die **Welten** (Farben, Emojis, Häufigkeit der Muster) und die **Bau-Muster** des Leveldesigns (Slalom, Höhle, Abzweigung, Algenwald …) |
-| `spiel.js` | Die Spiel-Logik: Bewegung, KI, Kollisionen, Zeichnen, Sound, Menüs – in 14 kommentierte Abschnitte gegliedert |
+| `config.js` | **Alle Stellschrauben**: Geschwindigkeiten, Spawn-Raten, Größen, Höhlen-Dunkelheit … Hier zuerst schauen, wenn du das Spiel leichter/schwerer machen willst! |
+| `welten.js` | Die **24 Welten** (Farben, Emojis, Tiere, Häufigkeit der Muster) und die **Bau-Muster** des Leveldesigns (Slalom, Torbogen, Abzweigung, Höhlen-Gänge …) |
+| `spiel.js` | Die Spiel-Logik: Bewegung, Hai-KI, Höhlen, Kollisionen, Zeichnen, Sound, Menüs – in 14 kommentierte Abschnitte gegliedert |
 | `index.html` | Grundgerüst und die Menü-Bildschirme (Start, Pause, Einstellungen ⚙️) |
 | `style.css` | Aussehen der Menüs und Anzeigen |
 
@@ -56,4 +72,4 @@ Der komplette Code ist ausführlich **auf Deutsch kommentiert**.
 ## 🌍 Eigene Welten bauen
 
 In `welten.js` einfach einen neuen Eintrag an die `WELTEN`-Liste anhängen –
-Name, Farben, Emojis und die Gewichte der Bau-Muster festlegen, fertig.
+Name, Farben, Emojis, Tiere und die Gewichte der Bau-Muster festlegen, fertig.

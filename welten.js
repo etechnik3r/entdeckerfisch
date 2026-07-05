@@ -1,22 +1,26 @@
 /* ================================================================
    ENTDECKERFISCH – WELTEN & LEVELDESIGN
    ================================================================
-   Diese Datei enthält zwei Dinge:
+   Diese Datei enthält drei Dinge:
 
-   1. WELTEN  – Die Liste der Welten (Level). Jede Welt hat eigene
-                Farben, eigene Deko-Emojis und eine eigene Mischung
-                aus Bau-Mustern. Neue Welten kannst du einfach unten
-                an die Liste anhängen!
+   1. WELTEN  – Die Liste der 24 Welten (Level). Jede Welt hat eigene
+                Farben, eigene Hindernis-Emojis und eigene Tiere, die
+                harmlos im Hintergrund mitschwimmen. Neue Welten
+                kannst du einfach unten an die Liste anhängen!
 
    2. MUSTER  – Die "Bau-Muster" für das Leveldesign. Ein Muster ist
                 ein kleines Stück Strecke (z. B. ein Felsen-Slalom
-                oder eine Höhle), das der Level-Generator in spiel.js
-                aneinanderreiht. So entsteht bei jedem Spielen ein
-                etwas anderer, abwechslungsreicher Weg.
+                oder eine Abzweigung), das der Level-Generator in
+                spiel.js übereinanderstapelt – denn der Fisch
+                schwimmt NACH OBEN, zur Wasseroberfläche!
+
+   3. HOEHLEN_MUSTER – Extra-Muster für die dunklen Höhlen:
+                viele Steine, enge Gänge, kaum Pflanzen.
 
    Koordinaten-Erinnerung: Alles wird in "E" gemessen
    (1 E = 1 % der Bildschirmhöhe, siehe config.js).
-   y = 0 ist die Wasseroberfläche, y = 100 der Meeresboden.
+   h = 0 ist der Start unten, h = streckeProWelt die Oberfläche.
+   x = 0 ist die Mitte des Spielfelds (links negativ, rechts positiv).
    ================================================================ */
 
 
@@ -26,10 +30,12 @@
    Jede Welt bestimmt:
    - name / emoji     : Anzeige beim Levelstart
    - farbeOben/Unten  : Farbverlauf des Wassers (oben hell, unten dunkel)
-   - farbeBoden       : Farbe des Sandbodens
-   - emojis           : Welche Emojis für Felsen, Korallen und Algen
-                        benutzt werden (so sieht jede Welt anders aus)
-   - deko             : Emojis, die als harmlose Deko herumschwimmen
+   - farbeBoden       : Farbe des Meeresbodens (nur am Start sichtbar)
+   - emojis           : Welche Emojis für Felsen und Pflanzen benutzt
+                        werden (Felsen stoppen sanft, Pflanzen bremsen nur)
+   - tiere            : Tiere, die harmlos im Hintergrund mitschwimmen.
+                        Wenn man über sie schwimmt, passiert NICHTS –
+                        sie sind nur schöne Kulisse!
    - musterGewichte   : Wie oft welches Bau-Muster vorkommt.
                         Höhere Zahl = kommt häufiger. 0 = kommt nie.
    ---------------------------------------------------------------- */
@@ -37,44 +43,200 @@ const WELTEN = [
     {
         name: "Korallenriff",
         emoji: "🐠",
-        farbeOben: "#3fa9f5",
-        farbeUnten: "#0a4d8c",
-        farbeBoden: "#e8c87a",
-        emojis: { fels: "🪨", koralle: "🪸", alge: "🌿" },
-        deko: ["🐠", "🐚", "⭐"],
-        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, algenwald: 2, hoehle: 1, abzweigung: 2 },
+        farbeOben: "#3fa9f5", farbeUnten: "#0a4d8c", farbeBoden: "#e8c87a",
+        emojis: { fels: "🪸", pflanze: "🌿" },
+        tiere: ["🐠", "🐟", "🐡"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
     },
     {
-        name: "Geheimnisvolle Höhlen",
-        emoji: "🦑",
-        farbeOben: "#4a6fb5",
-        farbeUnten: "#1a1a4e",
-        farbeBoden: "#8a7a9a",
-        emojis: { fels: "🪨", koralle: "💎", alge: "🍄" },
-        deko: ["🦑", "💎", "🐌"],
-        musterGewichte: { freiesWasser: 2, slalom: 2, torbogen: 3, algenwald: 1, hoehle: 4, abzweigung: 3 },
-    },
-    {
-        name: "Algen-Dschungel",
+        name: "Schildkrötenbucht",
         emoji: "🐢",
-        farbeOben: "#3fb58a",
-        farbeUnten: "#0a5c3c",
-        farbeBoden: "#7a9a5a",
-        emojis: { fels: "🪨", koralle: "🌺", alge: "🌿" },
-        deko: ["🐢", "🐸", "🍃"],
-        musterGewichte: { freiesWasser: 2, slalom: 2, torbogen: 2, algenwald: 5, hoehle: 1, abzweigung: 3 },
+        farbeOben: "#3fc4b0", farbeUnten: "#0a6b5c", farbeBoden: "#d8c88a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐢", "🐢", "🐠"],
+        musterGewichte: { freiesWasser: 4, slalom: 2, torbogen: 2, pflanzenwald: 3, felsengarten: 2 },
+    },
+    {
+        name: "Quallen-Lagune",
+        emoji: "🪼",
+        farbeOben: "#7f8fe5", farbeUnten: "#2a2a7c", farbeBoden: "#9a8ab5",
+        emojis: { fels: "🪨", pflanze: "🪼" },
+        tiere: ["🪼", "🪼", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 2, pflanzenwald: 4, felsengarten: 1 },
+    },
+    {
+        name: "Delfin-Bucht",
+        emoji: "🐬",
+        farbeOben: "#4fc3f7", farbeUnten: "#0d5ba5", farbeBoden: "#eed9a0",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐬", "🐬", "🐟"],
+        musterGewichte: { freiesWasser: 4, slalom: 3, torbogen: 2, pflanzenwald: 1, felsengarten: 2 },
+    },
+    {
+        name: "Seegras-Wiese",
+        emoji: "🌿",
+        farbeOben: "#3fb58a", farbeUnten: "#0a5c3c", farbeBoden: "#7a9a5a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐢", "🐟", "🐸"],
+        musterGewichte: { freiesWasser: 2, slalom: 2, torbogen: 2, pflanzenwald: 5, felsengarten: 1 },
+    },
+    {
+        name: "Eismeer",
+        emoji: "🧊",
+        farbeOben: "#bfe6f5", farbeUnten: "#3a7ca8", farbeBoden: "#dcedf5",
+        emojis: { fels: "🧊", pflanze: "🌿" },
+        tiere: ["🐧", "🦭", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 3 },
+    },
+    {
+        name: "Vulkan-Riff",
+        emoji: "🌋",
+        farbeOben: "#e58a5f", farbeUnten: "#6b1a1a", farbeBoden: "#4a3a3a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🦀", "🐠", "🐟"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 4 },
+    },
+    {
+        name: "Wal-Weite",
+        emoji: "🐋",
+        farbeOben: "#5a9fd5", farbeUnten: "#123a6b", farbeBoden: "#8a9ab5",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐋", "🐳", "🐟"],
+        musterGewichte: { freiesWasser: 5, slalom: 2, torbogen: 2, pflanzenwald: 1, felsengarten: 2 },
+    },
+    {
+        name: "Krabben-Küste",
+        emoji: "🦀",
+        farbeOben: "#5fc4d5", farbeUnten: "#1a6b7c", farbeBoden: "#eed9a0",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🦀", "🦀", "🐠"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 2, pflanzenwald: 2, felsengarten: 3 },
+    },
+    {
+        name: "Oktopus-Garten",
+        emoji: "🐙",
+        farbeOben: "#9a7fd5", farbeUnten: "#3a1a6b", farbeBoden: "#7a6a9a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐙", "🐙", "🐠"],
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 3, pflanzenwald: 2, felsengarten: 3 },
+    },
+    {
+        name: "Regenbogen-Riff",
+        emoji: "🌈",
+        farbeOben: "#5fd5c4", farbeUnten: "#7c3a9a", farbeBoden: "#f5c4d5",
+        emojis: { fels: "🪸", pflanze: "🌺" },
+        tiere: ["🐠", "🐟", "🦐"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
+    },
+    {
+        name: "Piraten-Bucht",
+        emoji: "🏴‍☠️",
+        farbeOben: "#6b8f7c", farbeUnten: "#1a3a2c", farbeBoden: "#8a7a5a",
+        emojis: { fels: "⚓", pflanze: "🌿" },
+        tiere: ["🐠", "🐡", "🐟"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 3 },
+    },
+    {
+        name: "Versunkene Stadt",
+        emoji: "🏛️",
+        farbeOben: "#7f9fb5", farbeUnten: "#2a3a5c", farbeBoden: "#9a9a8a",
+        emojis: { fels: "🏛️", pflanze: "🌿" },
+        tiere: ["🐬", "🐟", "🐠"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 4, pflanzenwald: 1, felsengarten: 3 },
+    },
+    {
+        name: "Glitzer-Grotte",
+        emoji: "💎",
+        farbeOben: "#4a6fb5", farbeUnten: "#1a1a4e", farbeBoden: "#8a7a9a",
+        emojis: { fels: "💎", pflanze: "🌿" },
+        tiere: ["🦑", "🐟", "🐠"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 4 },
     },
     {
         name: "Funkelndes Nachtmeer",
         emoji: "🌙",
-        farbeOben: "#2c3e70",
-        farbeUnten: "#0b1030",
-        farbeBoden: "#3a3a5c",
-        emojis: { fels: "🪨", koralle: "🎐", alge: "🪼" },
-        deko: ["🌟", "🪼", "🐙"],
-        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, algenwald: 2, hoehle: 2, abzweigung: 3 },
+        farbeOben: "#2c3e70", farbeUnten: "#0b1030", farbeBoden: "#3a3a5c",
+        emojis: { fels: "🪨", pflanze: "🪼" },
+        tiere: ["🪼", "🦑", "🐙"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
+    },
+    {
+        name: "Tiefsee-Schlucht",
+        emoji: "🦑",
+        farbeOben: "#1a2a4e", farbeUnten: "#05081c", farbeBoden: "#2a2a3c",
+        emojis: { fels: "🪨", pflanze: "🪼" },
+        tiere: ["🦑", "🐙", "🐡"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 4 },
+    },
+    {
+        name: "Goldener See",
+        emoji: "🌞",
+        farbeOben: "#f5c45f", farbeUnten: "#a5601a", farbeBoden: "#d8b87a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐟", "🐠", "🦆"],
+        musterGewichte: { freiesWasser: 4, slalom: 2, torbogen: 2, pflanzenwald: 3, felsengarten: 2 },
+    },
+    {
+        name: "Mangroven-Wald",
+        emoji: "🌳",
+        farbeOben: "#8fb56b", farbeUnten: "#2c4a1a", farbeBoden: "#5c4a2c",
+        emojis: { fels: "🪵", pflanze: "🌱" },
+        tiere: ["🐟", "🐢", "🐸"],
+        musterGewichte: { freiesWasser: 2, slalom: 2, torbogen: 2, pflanzenwald: 5, felsengarten: 2 },
+    },
+    {
+        name: "Pinguin-Eisbucht",
+        emoji: "🐧",
+        farbeOben: "#d5ecf5", farbeUnten: "#4a8ab5", farbeBoden: "#eef5fa",
+        emojis: { fels: "🧊", pflanze: "🌿" },
+        tiere: ["🐧", "🐧", "🦭"],
+        musterGewichte: { freiesWasser: 3, slalom: 4, torbogen: 2, pflanzenwald: 1, felsengarten: 3 },
+    },
+    {
+        name: "Robben-Felsen",
+        emoji: "🦭",
+        farbeOben: "#8fa5b5", farbeUnten: "#2c3a4a", farbeBoden: "#6a7a8a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🦭", "🦭", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 3 },
+    },
+    {
+        name: "Seestern-Schlucht",
+        emoji: "⭐",
+        farbeOben: "#f5a55f", farbeUnten: "#7c2a5c", farbeBoden: "#e8c87a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["⭐", "🐠", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
+    },
+    {
+        name: "Muschel-Meer",
+        emoji: "🐚",
+        farbeOben: "#f5d5e5", farbeUnten: "#7c5a8a", farbeBoden: "#f0e0c8",
+        emojis: { fels: "🐚", pflanze: "🌿" },
+        tiere: ["🐠", "🐟", "🐬"],
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 3, pflanzenwald: 2, felsengarten: 3 },
+    },
+    {
+        name: "Blubberblasen-Riff",
+        emoji: "🫧",
+        farbeOben: "#7fdcf5", farbeUnten: "#1a7c9a", farbeBoden: "#c8e8d8",
+        emojis: { fels: "🪸", pflanze: "🌿" },
+        tiere: ["🐟", "🐠", "🐡"],
+        musterGewichte: { freiesWasser: 4, slalom: 3, torbogen: 2, pflanzenwald: 2, felsengarten: 2 },
+    },
+    {
+        name: "Zaubermeer",
+        emoji: "✨",
+        farbeOben: "#c45fd5", farbeUnten: "#2a0a5c", farbeBoden: "#8a5ab5",
+        emojis: { fels: "💎", pflanze: "🌺" },
+        tiere: ["🧜‍♀️", "🐬", "🐠"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
     },
 ];
+
+// Diese Tiere schwimmen in HÖHLEN im Hintergrund herum
+// (andere Fische als draußen – Höhlenbewohner eben):
+const HOEHLEN_TIERE = ["🦑", "🐡", "🐙"];
 
 
 /* ----------------------------------------------------------------
@@ -100,189 +262,280 @@ function zufallAus(liste) {
 /* ----------------------------------------------------------------
    DIE BAU-MUSTER
    ----------------------------------------------------------------
-   Jedes Muster ist eine Funktion, die ab der Position startX ein
+   Jedes Muster ist eine Funktion, die ab der Höhe startH ein
    Stück Strecke "baut" und Folgendes zurückgibt:
 
    {
-     laenge:      Wie lang das Stück ist (in E)
-     hindernisse: Liste von Hindernissen  { x, y, r, art }
-                  art = "fels" | "koralle" | "alge"
-                  (Felsen & Korallen stoppen den Fisch sanft,
-                   Algen bremsen ihn nur ein bisschen)
-     garnelen:    Liste von Garnelen { x, y }
+     laenge:      Wie hoch das Stück ist (in E)
+     hindernisse: Liste von Hindernissen  { x, h, r, art }
+                  art = "fels" | "pflanze"
+                  (Felsen stoppen den Fisch sanft,
+                   Pflanzen bremsen ihn nur ein bisschen)
+     garnelen:    Liste von Garnelen { x, h }
+     zone:        (nur bei der Abzweigung) Beschreibung der Wege
    }
+
+   Die Funktion spielfeldBreite() kommt aus spiel.js und sagt uns,
+   wie breit das Spielfeld gerade ist.
    ---------------------------------------------------------------- */
 const MUSTER = {
 
     /* ---------- FREIES WASSER ----------
-       Eine Verschnaufpause: keine Hindernisse, dafür ein schöner
-       Bogen aus Garnelen zum Einsammeln. */
-    freiesWasser(startX) {
-        const laenge = zufall(80, 120);
+       Eine Verschnaufpause: keine Hindernisse, dafür eine schöne
+       Schlangenlinie aus Garnelen zum Einsammeln. */
+    freiesWasser(startH) {
+        const laenge = zufall(70, 110);
+        const rand = spielfeldBreite() / 2;
         const garnelen = [];
-        const mitteY = zufall(30, 70);      // Höhe der Bogen-Mitte
         const anzahl = zufallGanz(4, 6);
+        const richtung = Math.random() < 0.5 ? 1 : -1;
         for (let i = 0; i < anzahl; i++) {
             garnelen.push({
-                x: startX + 20 + i * 12,
-                // Sinus-Kurve → die Garnelen bilden eine schöne Welle
-                y: mitteY + Math.sin(i * 0.9) * 14,
+                x: Math.sin(i * 0.9) * rand * 0.6 * richtung,   // Sinus-Kurve → schöne Welle
+                h: startH + 15 + i * 11,
             });
         }
         return { laenge, hindernisse: [], garnelen };
     },
 
     /* ---------- FELSEN-SLALOM ----------
-       Felsen abwechselnd oben und unten – der Fisch muss in
-       Schlangenlinien hindurchschwimmen. */
-    slalom(startX) {
+       Felsen abwechselnd links und rechts – der Fisch muss in
+       Schlangenlinien nach oben schwimmen. */
+    slalom(startH) {
         const anzahl = zufallGanz(3, 5);    // Wie viele Felsen
-        const abstand = 38;                 // Abstand zwischen den Felsen (in E)
+        const abstand = 32;                 // Höhen-Abstand zwischen den Felsen (in E)
+        const rand = spielfeldBreite() / 2;
         const hindernisse = [];
         const garnelen = [];
         for (let i = 0; i < anzahl; i++) {
-            const oben = i % 2 === 0;       // Abwechselnd oben / unten
+            const links = i % 2 === 0;      // Abwechselnd links / rechts
+            const seite = links ? -1 : 1;
             hindernisse.push({
-                x: startX + 25 + i * abstand,
-                y: oben ? zufall(18, 32) : zufall(68, 82),
-                r: zufall(7, 11),
+                x: seite * rand * zufall(0.35, 0.6),
+                h: startH + 20 + i * abstand,
+                r: zufall(6, 9),
                 art: "fels",
             });
             // Belohnung: eine Garnele jeweils auf der freien Seite
             garnelen.push({
-                x: startX + 25 + i * abstand,
-                y: oben ? zufall(60, 75) : zufall(25, 40),
+                x: -seite * rand * zufall(0.4, 0.65),
+                h: startH + 20 + i * abstand,
             });
         }
-        return { laenge: 25 + anzahl * abstand + 20, hindernisse, garnelen };
+        return { laenge: 20 + anzahl * abstand + 15, hindernisse, garnelen };
     },
 
-    /* ---------- KORALLEN-TOR ----------
-       Eine Wand aus Korallen (unten) und Felsen (oben) mit einer
-       Lücke, durch die man präzise hindurchschwimmen muss.
+    /* ---------- FELSEN-TOR ----------
+       Eine Felswand quer über das Wasser mit einer Lücke, durch
+       die man präzise hindurchschwimmen muss.
        Die Lücke ist bewusst groß genug für Kinderhände. */
-    torbogen(startX) {
-        const torX = startX + 40;
-        const lueckeY = zufall(28, 72);     // Wo ist die Lücke?
-        const lueckeGroesse = 24;           // Wie groß ist die Lücke? (in E, fehlerverzeihend!)
+    torbogen(startH) {
+        const torH = startH + 30;
+        const rand = spielfeldBreite() / 2;
+        const lueckeX = zufall(-rand * 0.55, rand * 0.55);  // Wo ist die Lücke?
+        const lueckeGroesse = 20;           // Wie breit ist die Lücke? (in E, fehlerverzeihend!)
         const hindernisse = [];
 
-        // Wand von oben bis zur Lücke und von der Lücke bis unten bauen:
-        for (let y = 8; y < 96; y += 11) {
-            const abstandZurLuecke = Math.abs(y - lueckeY);
-            if (abstandZurLuecke < lueckeGroesse / 2) continue;  // Lücke freilassen
-            hindernisse.push({
-                x: torX + zufall(-3, 3),
-                y: y,
-                r: 6.5,
-                art: y > 55 ? "koralle" : "fels",   // Unten Korallen, oben Felsen
-            });
-        }
-
-        // Eine Garnele mitten in der Lücke zeigt den Weg – wie ein Wegweiser!
-        const garnelen = [
-            { x: torX - 18, y: lueckeY },
-            { x: torX, y: lueckeY },
-            { x: torX + 18, y: lueckeY },
-        ];
-        return { laenge: 90, hindernisse, garnelen };
-    },
-
-    /* ---------- HÖHLE ----------
-       Ein Felsmassiv mit einem Tunnel hindurch. Der Fisch hat die
-       Wahl: OBEN über die Felsen (kurz, aber nah an der Oberfläche,
-       wo die Boote fahren!) oder MITTENDURCH den Tunnel (sicher vor
-       Booten, dafür eng – und mit Garnelen als Belohnung). */
-    hoehle(startX) {
-        const laenge = zufall(100, 140);
-        const tunnelY = zufall(52, 68);     // Höhe des Tunnels
-        const tunnelGroesse = 22;           // Tunnel-Durchmesser (in E)
-        const deckeY = 36;                  // Oberkante des Felsmassivs
-        const hindernisse = [];
-
-        // Das Felsmassiv Stück für Stück bauen (Spalten von links nach rechts):
-        for (let x = startX + 20; x < startX + laenge - 10; x += 12) {
-            for (let y = deckeY; y < 96; y += 11) {
-                // Den Tunnel freilassen:
-                if (Math.abs(y - tunnelY) < tunnelGroesse / 2) continue;
-                hindernisse.push({
-                    x: x + zufall(-2, 2),
-                    y: y + zufall(-2, 2),
-                    r: 7,
-                    art: "fels",
-                });
-            }
-        }
-
-        // Garnelen-Spur durch den Tunnel (Belohnung für den mutigen Weg):
-        const garnelen = [];
-        for (let x = startX + 30; x < startX + laenge - 15; x += 22) {
-            garnelen.push({ x: x, y: tunnelY });
-        }
-        return { laenge, hindernisse, garnelen };
-    },
-
-    /* ---------- ABZWEIGUNG ----------
-       Eine lange Felswand in der Mitte teilt den Weg in einen
-       OBEREN und einen UNTEREN Kanal. Der Fisch muss sich
-       entscheiden! In einem Kanal warten Garnelen, im anderen
-       stehen ein paar Algen im Weg. Perfekt, um Verfolger
-       abzuschütteln (die werden in Hindernissen ja gebremst). */
-    abzweigung(startX) {
-        const laenge = zufall(110, 150);
-        const wandY = zufall(42, 58);       // Höhe der Trennwand
-        const hindernisse = [];
-        const garnelen = [];
-
-        // Die Trennwand in der Mitte:
-        for (let x = startX + 25; x < startX + laenge - 15; x += 13) {
+        // Wand von links bis zur Lücke und von der Lücke bis rechts bauen:
+        for (let x = -rand + 4; x <= rand - 4; x += 9) {
+            if (Math.abs(x - lueckeX) < lueckeGroesse / 2) continue;  // Lücke freilassen
             hindernisse.push({
                 x: x,
-                y: wandY + zufall(-1.5, 1.5),
-                r: 7.5,
+                h: torH + zufall(-2.5, 2.5),
+                r: 6,
                 art: "fels",
             });
         }
 
-        // Zufällig entscheiden: In welchem Kanal liegen die Garnelen?
-        const garnelenOben = Math.random() < 0.5;
-        const garnelenY = garnelenOben ? wandY - 25 : wandY + 25;
-        const algenY = garnelenOben ? wandY + 25 : wandY - 25;
+        // Garnelen mitten in der Lücke zeigen den Weg – wie Wegweiser!
+        const garnelen = [
+            { x: lueckeX, h: torH - 14 },
+            { x: lueckeX, h: torH },
+            { x: lueckeX, h: torH + 14 },
+        ];
+        return { laenge: 70, hindernisse, garnelen };
+    },
 
-        // Garnelen-Spur im "Belohnungs-Kanal":
-        for (let x = startX + 40; x < startX + laenge - 20; x += 25) {
-            garnelen.push({ x: x, y: garnelenY + zufall(-4, 4) });
+    /* ---------- PFLANZENWALD ----------
+       Viele Wasserpflanzen versperren den Weg. Pflanzen sind
+       weich: Sie bremsen den Fisch nur, statt ihn zu stoppen.
+       Dazwischen ein paar Felsen und Garnelen in den Lücken. */
+    pflanzenwald(startH) {
+        const laenge = zufall(80, 120);
+        const rand = spielfeldBreite() / 2;
+        const hindernisse = [];
+        const garnelen = [];
+
+        // Pflanzen-Büschel verteilt über die ganze Breite:
+        for (let h = startH + 15; h < startH + laenge - 10; h += zufall(12, 18)) {
+            const x = zufall(-rand * 0.8, rand * 0.8);
+            hindernisse.push({ x: x, h: h, r: 5.5, art: "pflanze" });
+            // Manchmal wächst gleich daneben noch eine zweite Pflanze:
+            if (Math.random() < 0.5) {
+                hindernisse.push({ x: x + zufall(-10, 10), h: h + zufall(-4, 4), r: 5.5, art: "pflanze" });
+            }
         }
-        // Ein paar Algen im anderen Kanal (bremsen nur, tun nicht weh):
-        for (let x = startX + 45; x < startX + laenge - 20; x += 35) {
-            hindernisse.push({ x: x, y: algenY + zufall(-5, 5), r: 6, art: "alge" });
+        // Vereinzelte Felsen am Rand:
+        for (let h = startH + 30; h < startH + laenge - 15; h += zufall(40, 60)) {
+            const seite = Math.random() < 0.5 ? -1 : 1;
+            hindernisse.push({ x: seite * rand * zufall(0.6, 0.8), h: h, r: 7, art: "fels" });
+        }
+        // Garnelen in der Mitte als Belohnung:
+        for (let h = startH + 25; h < startH + laenge - 10; h += 26) {
+            garnelen.push({ x: zufall(-rand * 0.4, rand * 0.4), h: h });
         }
         return { laenge, hindernisse, garnelen };
     },
 
-    /* ---------- ALGENWALD ----------
-       Viele Algen wachsen vom Boden hoch, ein paar Felsen hängen
-       von oben. Der Fisch schlängelt sich hindurch. Algen sind
-       weich: Sie bremsen nur, statt den Fisch zu stoppen. */
-    algenwald(startX) {
-        const laenge = zufall(90, 130);
+    /* ---------- FELSENGARTEN ----------
+       Verstreute Felsen, zwischen denen man sich den Weg suchen
+       muss. Garnelen zeigen gute Schwimm-Wege. */
+    felsengarten(startH) {
+        const laenge = zufall(80, 120);
+        const rand = spielfeldBreite() / 2;
         const hindernisse = [];
         const garnelen = [];
 
-        // Algen am Boden (in zwei Etagen übereinander, wie hohes Gras):
-        for (let x = startX + 20; x < startX + laenge - 10; x += zufall(14, 22)) {
-            const hoehe = zufall(60, 78);              // Wie hoch die Alge reicht
-            hindernisse.push({ x: x, y: 88, r: 6, art: "alge" });
-            hindernisse.push({ x: x, y: hoehe, r: 6, art: "alge" });
+        for (let h = startH + 18; h < startH + laenge - 12; h += zufall(20, 30)) {
+            // Pro "Reihe" 1–2 Felsen an zufälligen Stellen:
+            const x1 = zufall(-rand * 0.75, rand * 0.75);
+            hindernisse.push({ x: x1, h: h, r: zufall(6, 9), art: "fels" });
+            if (Math.random() < 0.4) {
+                // Der zweite Felsen kommt auf die andere Seite (Weg bleibt frei):
+                hindernisse.push({ x: x1 > 0 ? zufall(-rand * 0.75, -8) : zufall(8, rand * 0.75),
+                                   h: h + zufall(-5, 5), r: zufall(5, 8), art: "fels" });
+            }
+            // Eine Garnele in sicherem Abstand:
+            garnelen.push({ x: x1 > 0 ? x1 - zufall(16, 22) : x1 + zufall(16, 22), h: h + 8 });
         }
-        // Vereinzelte Felsen von oben:
-        for (let x = startX + 40; x < startX + laenge - 20; x += zufall(45, 65)) {
-            hindernisse.push({ x: x, y: zufall(14, 24), r: 8, art: "fels" });
+        return { laenge, hindernisse, garnelen };
+    },
+};
+
+
+/* ----------------------------------------------------------------
+   DIE ABZWEIGUNG
+   ----------------------------------------------------------------
+   Felswände teilen das Wasser in 2 oder 3 Wege: links, geradeaus,
+   rechts. Der Fisch muss sich entscheiden und wird dann seinen
+   gewählten Weg entlangschwimmen – die anderen Wege ziehen unten
+   vorbei und verschwinden.
+
+   Einer der Wege kann ein HÖHLEN-EINGANG sein: Man erkennt ihn an
+   den vielen Steinen und dem dunklen Loch. Wer hineinschwimmt,
+   landet in einer dunklen Höhle (siehe HOEHLEN_MUSTER unten)!
+   Die anderen Wege haben Garnelen oder Pflanzen.
+   ---------------------------------------------------------------- */
+function abzweigungBauen(startH) {
+    const laenge = 85;
+    const breite = spielfeldBreite();
+    const rand = breite / 2;
+    // Auf schmalen Handys 2 Wege, auf breiten Bildschirmen auch mal 3:
+    const anzahlWege = breite > 52 ? zufallGanz(2, 3) : 2;
+    const hindernisse = [];
+    const garnelen = [];
+
+    // Die Trennwände zwischen den Wegen (lange Felsreihen nach oben):
+    for (let i = 1; i < anzahlWege; i++) {
+        const wandX = -rand + (breite * i) / anzahlWege;
+        for (let h = startH + 12; h < startH + laenge - 4; h += 8.5) {
+            hindernisse.push({ x: wandX + zufall(-1.5, 1.5), h: h, r: 5.5, art: "fels" });
         }
-        // Garnelen im freien Mittelbereich:
-        for (let x = startX + 35; x < startX + laenge - 15; x += 30) {
-            garnelen.push({ x: x, y: zufall(35, 50) });
+    }
+
+    // Die Wege beschreiben: Grenzen + was darin wartet.
+    // Ein Weg wird (mit hoehle.chance) zum Höhlen-Eingang:
+    const kanaele = [];
+    const hoehlenWeg = Math.random() < KONFIG.hoehle.chance ? zufallGanz(0, anzahlWege - 1) : -1;
+    for (let i = 0; i < anzahlWege; i++) {
+        const von = -rand + (breite * i) / anzahlWege;
+        const bis = -rand + (breite * (i + 1)) / anzahlWege;
+        const mitte = (von + bis) / 2;
+        let art;
+        if (i === hoehlenWeg) {
+            art = "hoehle";
+            // Höhlen-Eingang: viele Steine drumherum, damit man ihn erkennt.
+            // (Die Steine bekommen immer das 🪨-Emoji, egal in welcher Welt.)
+            for (let h = startH + 40; h < startH + laenge; h += 10) {
+                hindernisse.push({ x: mitte - (bis - von) * 0.32, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
+                hindernisse.push({ x: mitte + (bis - von) * 0.32, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
+            }
+        } else if (Math.random() < 0.6) {
+            art = "garnelen";
+            // Der Leckerbissen-Weg: eine Garnelen-Spur:
+            for (let h = startH + 20; h < startH + laenge - 5; h += 16) {
+                garnelen.push({ x: mitte + zufall(-3, 3), h: h });
+            }
+        } else {
+            art = "pflanzen";
+            // Der Pflanzen-Weg: bremst ein bisschen, tut aber nicht weh:
+            for (let h = startH + 22; h < startH + laenge - 8; h += 18) {
+                hindernisse.push({ x: mitte + zufall(-4, 4), h: h, r: 5.5, art: "pflanze" });
+            }
         }
+        kanaele.push({ von, bis, art });
+    }
+
+    // Die Zone merkt sich, wo die Abzweigung ist – spiel.js prüft dann,
+    // welchen Weg der Fisch gewählt hat, wenn er oben herauskommt:
+    const zone = { vonH: startH, bisH: startH + laenge, kanaele: kanaele, entschieden: false };
+    return { laenge, hindernisse, garnelen, zone };
+}
+
+
+/* ----------------------------------------------------------------
+   HÖHLEN-MUSTER
+   ----------------------------------------------------------------
+   In der Höhle ist alles anders: dunkel, enge steinige Gänge,
+   kaum Pflanzen – und der Hai findet einen hier viel schneller!
+   Alle Höhlen-Steine benutzen das 🪨-Emoji (Höhle ist Höhle,
+   egal in welcher Welt).
+   ---------------------------------------------------------------- */
+const HOEHLEN_MUSTER = {
+
+    /* ---------- STEINIGER GANG ----------
+       Steinwände links und rechts, dazwischen versetzte Felsen.
+       Eine Garnelen-Spur zeigt den Schlängel-Weg. */
+    gang(startH) {
+        const laenge = zufall(60, 90);
+        const rand = spielfeldBreite() / 2;
+        const hindernisse = [];
+        const garnelen = [];
+
+        // Die Höhlenwände links und rechts:
+        for (let h = startH; h < startH + laenge; h += 9) {
+            hindernisse.push({ x: -rand + zufall(1, 4), h: h, r: 6, art: "fels", emoji: "🪨" });
+            hindernisse.push({ x: rand - zufall(1, 4), h: h, r: 6, art: "fels", emoji: "🪨" });
+        }
+        // Versetzte Felsen in der Mitte (Slalom im Dunkeln!):
+        for (let h = startH + 15; h < startH + laenge - 10; h += zufall(22, 30)) {
+            const x = zufall(-rand * 0.5, rand * 0.5);
+            hindernisse.push({ x: x, h: h, r: zufall(6, 8), art: "fels", emoji: "🪨" });
+            // Die Garnele leuchtet den freien Weg aus:
+            garnelen.push({ x: x > 0 ? x - zufall(15, 20) : x + zufall(15, 20), h: h });
+        }
+        return { laenge, hindernisse, garnelen };
+    },
+
+    /* ---------- ENGSTELLE ----------
+       Eine Steinwand quer durch die Höhle mit schmaler Lücke –
+       hier muss man genau zielen! */
+    engstelle(startH) {
+        const laenge = 55;
+        const rand = spielfeldBreite() / 2;
+        const torH = startH + 28;
+        const lueckeX = zufall(-rand * 0.45, rand * 0.45);
+        const hindernisse = [];
+
+        for (let x = -rand + 3; x <= rand - 3; x += 8) {
+            if (Math.abs(x - lueckeX) < 11) continue;    // Die Lücke freilassen
+            hindernisse.push({ x: x, h: torH + zufall(-2, 2), r: 5.5, art: "fels", emoji: "🪨" });
+        }
+        // Garnelen als Wegweiser durch die Lücke:
+        const garnelen = [
+            { x: lueckeX, h: torH - 12 },
+            { x: lueckeX, h: torH + 12 },
+        ];
         return { laenge, hindernisse, garnelen };
     },
 };
