@@ -11,8 +11,12 @@
    in Pixeln, sondern in "Einheiten". 1 E = 1 % der Bildschirmhöhe.
    Der Bildschirm ist also immer genau 100 E hoch – egal ob kleines
    oder großes Handy. Geschwindigkeiten sind in "E pro Sekunde".
-   Beispiel: tempo = 30 heißt, der Fisch legt pro Sekunde eine Strecke
-   von 30 % der Bildschirmhöhe zurück.
+
+   DER FISCH SCHWIMMT NACH OBEN! Die Höhe "h" zählt, wie weit der
+   Fisch schon aufgestiegen ist: h = 0 ist der Start am Meeresboden,
+   h = streckeProWelt ist die Wasseroberfläche – das Ziel!
+   Links/rechts wird mit "x" gemessen: x = 0 ist die Mitte des
+   Spielfelds, negative Zahlen sind links, positive rechts.
    ================================================================ */
 
 const KONFIG = {
@@ -21,8 +25,8 @@ const KONFIG = {
        DER SPIELER-FISCH
        ------------------------------------------------------------ */
     fisch: {
-        tempo: 26,             // Grund-Schwimmtempo nach vorn (E pro Sekunde)
-        tempoHoch: 55,         // Wie schnell der Fisch nach oben/unten lenkt (E pro Sekunde)
+        tempo: 26,             // Grund-Schwimmtempo nach OBEN (E pro Sekunde)
+        tempoSeite: 55,        // Wie schnell der Fisch nach links/rechts lenkt (E pro Sekunde)
         lenkWeichheit: 6,      // Wie "weich" der Fisch dem Finger folgt (größer = direkter, kleiner = träger)
         radiusStart: 3.2,      // Größe des Fisches am Anfang (Radius in E)
         radiusProWachstum: 0.7,// Um so viel wächst der Fisch pro Wachstums-Stufe (in E)
@@ -49,40 +53,41 @@ const KONFIG = {
     },
 
     /* ------------------------------------------------------------
-       ANGREIFER-FISCHE (die Verfolger)
+       DER HAI (der Angreifer – kommt von unten!)
        ------------------------------------------------------------ */
     angreifer: {
-        tempoFaktor: 1.10,     // Angreifer-Tempo im Verhältnis zum Fisch-Grundtempo
+        tempoFaktor: 1.10,     // Hai-Tempo im Verhältnis zum Fisch-Grundtempo
                                // (1.10 = etwas schneller als der Fisch OHNE Boost,
                                //  aber deutlich langsamer als MIT Boost!)
-        radius: 3.6,           // Größe des Angreifers (Radius in E)
-        spawnAbstand: 55,      // Neuer Angreifer frühestens alle X Sekunden …
+        radius: 6.0,           // Größe des Hais (Radius in E) – schön groß, damit man ihn richtig sieht!
+        spawnAbstand: 50,      // Neuer Hai frühestens alle X Sekunden …
         spawnZufall: 25,       // … plus zufällig 0 bis X Sekunden obendrauf
-        fluchtAbstand: 65,     // Ist der Angreifer so weit (in E) abgehängt → er gibt auf
-        maxVerfolgung: 22,     // Nach so vielen Sekunden gibt der Angreifer immer auf
-        bremseInHindernis: 0.35,// Angreifer werden in Hindernissen stark gebremst (0.35 = nur 35 % Tempo).
+        fluchtAbstand: 55,     // Ist der Hai so weit (in E) abgehängt → er gibt auf
+        maxVerfolgung: 20,     // Nach so vielen Sekunden gibt der Hai immer auf
+        bremseInHindernis: 0.35,// Der Hai wird in Hindernissen stark gebremst (0.35 = nur 35 % Tempo).
                                // Deshalb lohnt es sich, durch enge Wege zu flüchten!
-        erstesSpawnAb: 15,     // Sekunden Schonfrist am Levelanfang, bevor der erste Angreifer kommt
+        erstesSpawnAb: 12,     // Sekunden Schonfrist am Levelanfang, bevor der erste Hai kommt
+        hoehleSpawnAb: 3,      // In HÖHLEN kommt der Hai viel schneller: schon nach so vielen Sekunden!
     },
 
     /* ------------------------------------------------------------
-       BOOTE (fahren an der Oberfläche, werfen einen Schatten)
+       HÖHLEN (erreichbar über Abzweigungen)
        ------------------------------------------------------------ */
-    boote: {
-        spawnAbstand: 18,      // Neues Boot frühestens alle X Sekunden …
-        spawnZufall: 12,       // … plus zufällig 0 bis X Sekunden
-        tempo: 34,             // Wie schnell das Boot (relativ zum Wasser) fährt (E pro Sekunde)
-        breite: 26,            // Breite des Boots-Schattens (in E)
-        gefahrTiefe: 13,       // Nur wenn der Fisch höher als diese Tiefe schwimmt (y < 13 E),
-                               // kann ihn das Boot erwischen. Tiefer = sicher!
+    hoehle: {
+        minLaenge: 150,        // Eine Höhle ist mindestens so lang (in E) …
+        maxLaenge: 230,        // … und höchstens so lang
+        chance: 0.7,           // Wahrscheinlichkeit, dass eine Abzweigung einen Höhlen-Eingang hat (0.7 = 70 %)
+        dunkelheit: 0.8,       // Wie dunkel es in der Höhle wird (0 = gar nicht, 1 = stockfinster)
     },
 
     /* ------------------------------------------------------------
        LEVEL / WELTEN
        ------------------------------------------------------------ */
     level: {
-        streckeProWelt: 1300,  // So viele E muss der Fisch schwimmen, bis das Ziel auftaucht
-        zielRadius: 9,         // Größe des Ziel-Strudels (Radius in E)
+        streckeProWelt: 1000,  // So viele E muss der Fisch nach OBEN schwimmen bis zur Wasseroberfläche
+        abzweigungAbstand: 200,// Frühestens alle so viele E kommt eine Abzweigung …
+        abzweigungZufall: 100, // … plus zufällig 0 bis so viele E
+        freieZielgerade: 90,   // Die letzten E vor der Oberfläche bleiben frei (Zielgerade ohne Hindernisse)
         tempoPlusProRunde: 0.1,// Wenn alle Welten geschafft sind, geht es wieder von vorn los –
                                // aber pro Runde um 10 % schneller (0.1 = +10 %)
     },
@@ -92,15 +97,16 @@ const KONFIG = {
        ------------------------------------------------------------ */
     steuerung: {
         // Der Fisch schwimmt immer zu der Stelle, an der der Finger liegt.
-        // Zusätzlich kann man kurz oben/unten tippen, um auszuweichen:
-        tippSprung: 18,        // Bei kurzem Tippen springt das Ziel um so viele E nach oben/unten
+        // Zusätzlich kann man kurz links/rechts tippen, um auszuweichen:
+        tippSprung: 14,        // Bei kurzem Tippen springt das Ziel um so viele E zur Seite
     },
 
     /* ------------------------------------------------------------
-       OBERFLÄCHE & BODEN (Begrenzung des Schwimmbereichs)
+       DAS SPIELFELD (Begrenzung links und rechts)
        ------------------------------------------------------------ */
-    wasser: {
-        obenGrenze: 6,         // Näher als 6 E an die Oberfläche geht nicht (dort sind die Wellen)
-        untenGrenze: 94,       // Tiefer als 94 E geht nicht (dort ist der Sandboden)
+    spielfeld: {
+        maxBreite: 60,         // Breiter als so viele E wird das Spielfeld nie
+                               // (sonst wäre es auf großen Bildschirmen zu weitläufig)
+        randAbstand: 1.5,      // So nah (in E) darf der Fisch an den Rand heran
     },
 };
