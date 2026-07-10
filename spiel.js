@@ -98,6 +98,7 @@ const spieler = {
     zielX: 0,          // Wohin der Finger den Fisch lenkt
     boostZeit: 0,      // Restliche Boost-Sekunden (> 0 = Fisch ist schnell)
     gebremstZeit: 0,   // Restliche Sekunden "abgebremst" (nach Felsen-Rempler)
+    pflanzenZeit: 0,   // Restliche Sekunden "im Pflanzen-Dickicht" (schwimmt langsamer)
     schonzeit: 0,      // Restliche Unverwundbar-Sekunden (Fisch blinkt)
     garnelenGesamt: 0, // Alle jemals gefressenen Garnelen (für die Anzeige)
     wachstum: 0,       // Aktuelle Wachstums-Stufe (0 bis maxWachstum)
@@ -371,12 +372,14 @@ function spielerBewegen(dt) {
     let tempo = grundTempo();
     if (spieler.boostZeit > 0) tempo *= KONFIG.boost.faktor;    // Garnelen-Boost!
     if (spieler.gebremstZeit > 0) tempo *= 0.4;                 // Nach Rempler kurz langsam
+    if (spieler.pflanzenZeit > 0) tempo *= KONFIG.pflanzen.bremsFaktor;  // Im Dickicht geht's langsamer
 
     spieler.h += tempo * dt;
 
     // ---- Timer herunterzählen ----
     spieler.boostZeit    = Math.max(0, spieler.boostZeit - dt);
     spieler.gebremstZeit = Math.max(0, spieler.gebremstZeit - dt);
+    spieler.pflanzenZeit = Math.max(0, spieler.pflanzenZeit - dt);
     spieler.schonzeit    = Math.max(0, spieler.schonzeit - dt);
 
     // ---- Nach links/rechts lenken (weich zum Finger-Ziel gleiten) ----
@@ -464,8 +467,9 @@ function kollisionenPruefen(dt) {
 
         if (abstand < mindestAbstand) {
             if (hi.art === "pflanze") {
-                // Pflanzen sind weich: Sie bremsen nur ein kleines bisschen.
-                spieler.gebremstZeit = Math.max(spieler.gebremstZeit, 0.15);
+                // Pflanzen sind weich: Sie tun nicht weh, aber im Dickicht
+                // schwimmt man SPÜRBAR langsamer (wie durch echtes Seegras).
+                spieler.pflanzenZeit = KONFIG.pflanzen.nachwirkung;
                 if (Math.random() < 0.1) blase(spieler.x, spieler.h);
             } else {
                 // Felsen: den Fisch sanft aus dem Hindernis herausschieben.
@@ -535,6 +539,14 @@ function hoehleStarten() {
     naechsterAngreifer = Math.min(naechsterAngreifer,
         spielZeit + KONFIG.angreifer.hoehleSpawnAb + zufall(0, 4));
 
+    // Die Hintergrund-Tiere erschrecken sich vor der dunklen Höhle:
+    // Sie schwimmen schnell davon und verschwinden nach und nach –
+    // in die Höhle traut sich von ihnen keiner hinein!
+    for (const t of tiere) {
+        t.flieht = true;
+        t.vx = (t.x >= 0 ? 1 : -1) * Math.max(Math.abs(t.vx) * 2, 9);
+    }
+
     meldung("Eine dunkle Höhle! 🕳️");
     SOUND.hoehle();
 }
@@ -570,19 +582,28 @@ function hoehleUpdate() {
    In HÖHLEN taucht er viel schneller auf – Vorsicht!
    ================================================================ */
 
+// Der Hai gibt auf: Er dreht LANGSAM ab – mal taucht er gemächlich
+// nach unten weg, mal verschwindet er zur Seite in einen "falschen Gang".
+// Das wirkt viel echter, als wenn er einfach blitzschnell wegzappt.
+function haiGibtAuf(a) {
+    a.flieht = true;
+    a.fluchtVx = (Math.random() < 0.5 ? -1 : 1) * zufall(4, 9);   // Leicht zur Seite abdrehen
+    a.fluchtTempo = zufall(KONFIG.angreifer.fluchtTempoMin, KONFIG.angreifer.fluchtTempoMax);
+}
+
 function angreiferUpdate(dt) {
     // ---- Neuen Hai spawnen, wenn es Zeit ist (aber nicht kurz vorm Ziel) ----
     if (!angreifer && spielZeit > naechsterAngreifer
         && spieler.h < KONFIG.level.streckeProWelt - 150) {
         angreifer = {
             x: spieler.x + zufall(-10, 10),
-            h: spieler.h - 45,      // Startet unterhalb des Bildschirms
+            h: spieler.h - KONFIG.angreifer.startAbstand,   // Startet weit unterhalb des Bildschirms
             verfolgZeit: 0,         // Wie lange er schon jagt
-            flieht: false,          // true = er hat aufgegeben und taucht ab
+            flieht: false,          // true = er hat aufgegeben und zieht ab
             phase: 0,               // Nur für die Optik (Schwanzflossen-Wedeln)
             bewX: 0, bewH: 1,       // Seine Schwimmrichtung (fürs Zeichnen)
         };
-        meldung("Achtung, ein Hai! 🦈");
+        meldung("Achtung, ein Hai nähert sich von hinten! 🦈");
         SOUND.angreifer();
     }
     if (!angreifer) return;
@@ -590,12 +611,17 @@ function angreiferUpdate(dt) {
     const a = angreifer;
     a.phase += dt * 10;
 
-    // ---- Wenn er aufgegeben hat: einfach nach unten davontauchen ----
+    // ---- Wenn er aufgegeben hat: LANGSAM abdrehen und verschwinden ----
     if (a.flieht) {
-        a.h -= grundTempo() * 1.5 * dt;
-        a.bewX = 0; a.bewH = -1;
-        // Ganz aus dem Bild? Dann weg damit und den nächsten Timer stellen:
-        if (a.h < spieler.h - 60) {
+        const sinkTempo = grundTempo() * a.fluchtTempo;
+        a.h -= sinkTempo * dt;              // Gemächlich zurückfallen …
+        a.x += a.fluchtVx * dt;             // … und dabei zur Seite abdrehen
+        const laenge = Math.sqrt(a.fluchtVx * a.fluchtVx + sinkTempo * sinkTempo) || 1;
+        a.bewX = a.fluchtVx / laenge;
+        a.bewH = -sinkTempo / laenge;
+        // Ganz aus dem Bild (unten ODER seitlich)? Dann weg damit
+        // und den Timer für den nächsten Hai stellen:
+        if (a.h < spieler.h - 70 || Math.abs(a.x) > schirmBreiteE / 2 + 25) {
             angreifer = null;
             naechsterAngreifer = spielZeit + KONFIG.angreifer.spawnAbstand
                                + zufall(0, KONFIG.angreifer.spawnZufall);
@@ -630,9 +656,13 @@ function angreiferUpdate(dt) {
     const rueckstand = spieler.h - a.h;
     if (rueckstand > KONFIG.angreifer.fluchtAbstand
         || a.verfolgZeit > KONFIG.angreifer.maxVerfolgung) {
-        meldung("Hai abgehängt! 🎉");
+        meldung(zufallAus([
+            "Hai abgehängt! 🎉",
+            "Der Hai schwimmt in den falschen Gang! 🦈💨",
+            "Der Hai gibt auf und zieht davon! 🎉",
+        ]));
         SOUND.abgehaengt();
-        a.flieht = true;
+        haiGibtAuf(a);
         return;
     }
 
@@ -645,7 +675,7 @@ function angreiferUpdate(dt) {
         spieler.boostZeit = KONFIG.boost.dauer * 1.5;   // Flucht-Boost!
         meldung("Ohje! Schnell weg! 💨");
         SOUND.erwischt();
-        a.flieht = true;   // Der Hai ist zufrieden und zieht ab
+        haiGibtAuf(a);   // Der Hai ist zufrieden und zieht gemächlich ab
     }
 }
 
@@ -702,6 +732,36 @@ function zeichneEmoji(emoji, x, y, groessePx, spiegeln = false, drehung = 0) {
     ctx.restore();
 }
 
+/* ---------- PFLANZEN – fest verwurzelt, nicht schwebend! ----------
+   Jede Pflanze bekommt einen kleinen Sand-Sockel mit Steinchen,
+   auf dem sie fest steht. Und sie wiegt sich um ihren FUSS in der
+   Strömung – nicht um die Mitte. So schwebt nichts mehr in der Luft! */
+function zeichnePflanze(emoji, px, py, groessePx, wackeln, bodenFarbe) {
+    const basisY = py + groessePx * 0.85;   // Hier "steht" die Pflanze
+
+    // Der Sand-Hügel, in dem die Pflanze wurzelt:
+    ctx.fillStyle = bodenFarbe;
+    ctx.beginPath();
+    ctx.ellipse(px, basisY, groessePx * 1.1, groessePx * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Ein paar Steinchen auf dem Hügel (halten die Pflanze fest):
+    ctx.fillStyle = "rgba(95, 88, 80, 0.85)";
+    ctx.beginPath();
+    ctx.arc(px - groessePx * 0.55, basisY - groessePx * 0.02, groessePx * 0.18, 0, Math.PI * 2);
+    ctx.arc(px + groessePx * 0.5, basisY + groessePx * 0.06, groessePx * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Die Pflanze selbst – sie dreht sich um ihren Fußpunkt:
+    ctx.save();
+    ctx.translate(px, basisY);
+    ctx.rotate(wackeln);
+    ctx.font = `${groessePx * 2}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(emoji, 0, groessePx * 0.15);
+    ctx.restore();
+}
+
 /* ---------- DER HAI – eine richtige, selbstgemalte Figur! ----------
    Kein kleines Emoji mehr: Der Hai wird mit Körper, Bauch, Flossen,
    Auge und Maul direkt aufs Canvas gemalt und dreht sich immer in
@@ -728,21 +788,21 @@ function zeichneHai(px, py, s, winkel, phase) {
 
     // Rückenflosse (die berühmte Hai-Flosse!):
     ctx.beginPath();
-    ctx.moveTo(0.0 * s, -0.55 * s);
-    ctx.quadraticCurveTo(-0.5 * s, -1.5 * s, -1.0 * s, -0.55 * s);
+    ctx.moveTo(0.0 * s, -0.65 * s);
+    ctx.quadraticCurveTo(-0.5 * s, -1.8 * s, -1.0 * s, -0.65 * s);
     ctx.closePath();
     ctx.fill();
 
-    // Der Körper:
+    // Der Körper (schön breit – ein richtig stattlicher Hai!):
     ctx.fillStyle = "#7d93a6";
     ctx.beginPath();
-    ctx.ellipse(0, 0, 1.7 * s, 0.8 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 1.7 * s, 0.95 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Der helle Bauch:
     ctx.fillStyle = "#dfe9f0";
     ctx.beginPath();
-    ctx.ellipse(0.15 * s, 0.32 * s, 1.3 * s, 0.42 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(0.15 * s, 0.38 * s, 1.3 * s, 0.5 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Die Seitenflosse:
@@ -839,8 +899,9 @@ function allesZeichnen(zeitstempel) {
     }
 
     // ---------- 4. Hintergrund-Tiere (harmlos, nur Kulisse) ----------
-    ctx.globalAlpha = 0.85;
     for (const t of tiere) {
+        // Fliehende Tiere verblassen langsam (alpha sinkt bis 0):
+        ctx.globalAlpha = 0.85 * (t.alpha ?? 1);
         const schwoof = Math.sin(zeitstempel * 0.002 + t.phase) * E * 0.8;
         // Tiere schauen in ihre Schwimmrichtung (Emojis schauen links):
         zeichneEmoji(t.emoji, schirmX(t.x), schirmY(t.h) + schwoof, t.groesse * E, t.vx > 0);
@@ -848,15 +909,62 @@ function allesZeichnen(zeitstempel) {
     ctx.globalAlpha = 1;
 
     // ---------- 5. Höhlen-Eingänge (dunkle Löcher an Abzweigungen) ----------
+    // Der Eingang sieht jetzt wie ein richtiges Felsenloch aus:
+    // innen stockdunkel, nach außen weicher werdend, mit einem
+    // grauen Steinrand rundherum.
     for (const zone of zonen) {
         for (const k of zone.kanaele) {
             if (k.art !== "hoehle") continue;
             const mx = schirmX((k.von + k.bis) / 2);
             const my = schirmY(zone.bisH - 12);
             if (my < -20 * E || my > hoehePx + 20 * E) continue;
-            ctx.fillStyle = "rgba(8, 8, 26, 0.85)";
+            const rx = (k.bis - k.von) * 0.3 * E;
+            const ry = 11 * E;
+
+            // Der Fels-Rand um das Loch (etwas größer als das Loch selbst):
+            ctx.fillStyle = "rgba(70, 65, 62, 0.9)";
             ctx.beginPath();
-            ctx.ellipse(mx, my, (k.bis - k.von) * 0.3 * E, 10 * E, 0, 0, Math.PI * 2);
+            ctx.ellipse(mx, my, rx * 1.25, ry * 1.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Einzelne Felsbrocken auf dem Rand verteilen:
+            ctx.fillStyle = "rgba(95, 88, 82, 0.95)";
+            for (let w = 0; w < Math.PI * 2; w += Math.PI / 5) {
+                const bx = mx + Math.cos(w) * rx * 1.2;
+                const by = my + Math.sin(w) * ry * 1.1;
+                ctx.beginPath();
+                ctx.arc(bx, by, (1.2 + Math.sin(w * 3) * 0.4) * E, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // Das dunkle Loch: innen fast schwarz, außen weich auslaufend:
+            const loch = ctx.createRadialGradient(mx, my, 0, mx, my, rx);
+            loch.addColorStop(0, "rgba(3, 3, 12, 0.98)");
+            loch.addColorStop(0.7, "rgba(8, 8, 26, 0.9)");
+            loch.addColorStop(1, "rgba(8, 8, 26, 0.55)");
+            ctx.fillStyle = loch;
+            ctx.beginPath();
+            ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // ---------- 5b. Höhlen-Felswände ----------
+    // In der Höhle wachsen links und rechts zackige Felswände ins
+    // Bild – so fühlt es sich wirklich wie ein enger Steingang an.
+    // Die Zacken wandern mit der Welt mit (sie hängen an der Höhe h):
+    if (dunkel > 0.05) {
+        ctx.fillStyle = `rgba(16, 13, 24, ${0.9 * dunkel})`;
+        for (const seite of [-1, 1]) {
+            const kante = seite < 0 ? 0 : breitePx;   // Linker oder rechter Bildschirmrand
+            ctx.beginPath();
+            ctx.moveTo(kante, -10);
+            for (let y = -10; y <= hoehePx + 10; y += 14) {
+                const hWelt = kameraH() + FISCH_SCHIRM_Y - y / E;   // Welt-Höhe an dieser Bildschirmzeile
+                const tiefe = (3 + Math.sin(hWelt * 0.25) * 1.4 + Math.sin(hWelt * 0.71) * 0.9)
+                              * E * dunkel;
+                ctx.lineTo(kante - seite * tiefe, y);
+            }
+            ctx.lineTo(kante, hoehePx + 10);
+            ctx.closePath();
             ctx.fill();
         }
     }
@@ -868,12 +976,14 @@ function allesZeichnen(zeitstempel) {
         // Höhlen-Steine bringen ihr eigenes Emoji mit (🪨), sonst nimmt
         // jede Welt ihre eigenen Bilder:
         const emoji = hi.emoji || welt.emojis[hi.art];
-        let wackeln = 0;
         if (hi.art === "pflanze") {
-            // Pflanzen wiegen sich sanft in der Strömung:
-            wackeln = Math.sin(zeitstempel * 0.002 + hi.h) * 0.15;
+            // Pflanzen stehen FEST auf einem kleinen Sand-Sockel und
+            // wiegen sich um ihren Fuß in der Strömung:
+            const wackeln = Math.sin(zeitstempel * 0.002 + hi.h) * 0.12;
+            zeichnePflanze(emoji, schirmX(hi.x), hy, hi.r * E * 1.15, wackeln, welt.farbeBoden);
+        } else {
+            zeichneEmoji(emoji, schirmX(hi.x), hy, hi.r * E * 1.15);
         }
-        zeichneEmoji(emoji, schirmX(hi.x), hy, hi.r * E * 1.15, false, wackeln);
     }
 
     // ---------- 7. Garnelen ----------
@@ -937,13 +1047,16 @@ function allesZeichnen(zeitstempel) {
         }
     }
 
-    // ---------- 10. Höhlen-Dunkelheit ----------
+    // ---------- 10. Dunkelheit (Höhlen & Tiefsee-Welten) ----------
     // In der Höhle wird es rundherum dunkel – nur um den Fisch
-    // bleibt ein heller Licht-Kreis:
-    if (dunkel > 0) {
+    // bleibt ein heller Licht-Kreis. Tiefsee-Welten (mit "dunkel"
+    // in welten.js) sind IMMER etwas duster – wie ganz tief unten
+    // im Meer, wo kaum noch Sonnenlicht ankommt:
+    const weltDunkel = (welt.dunkel || 0) * (1 - dunkel);   // Höhlen-Dunkelheit hat Vorrang
+    const finster = Math.min(0.92, dunkel * KONFIG.hoehle.dunkelheit + weltDunkel);
+    if (finster > 0.02) {
         const fx = schirmX(spieler.x);
         const fy = schirmY(spieler.h);
-        const finster = dunkel * KONFIG.hoehle.dunkelheit;
         const licht = ctx.createRadialGradient(fx, fy, 8 * E, fx, fy, 55 * E);
         licht.addColorStop(0, "rgba(3, 4, 16, 0)");
         licht.addColorStop(0.5, `rgba(3, 4, 16, ${finster * 0.5})`);
@@ -1067,6 +1180,12 @@ function partikelUpdate(dt) {
     for (let i = tiere.length - 1; i >= 0; i--) {
         const t = tiere[i];
         t.x += t.vx * dt;
+        // Fliehende Tiere (z. B. vor einer Höhle) werden dabei immer
+        // durchsichtiger, bis man sie gar nicht mehr sieht:
+        if (t.flieht) {
+            t.alpha = (t.alpha ?? 1) - dt * 0.6;
+            if (t.alpha <= 0) { tiere.splice(i, 1); continue; }
+        }
         if (Math.abs(t.x) > rand + 14) tiere.splice(i, 1);   // Aus dem Bild? Weg damit.
     }
 }
@@ -1094,6 +1213,7 @@ function weltStarten() {
     spieler.h = 0;
     spieler.boostZeit = 0;
     spieler.gebremstZeit = 0;
+    spieler.pflanzenZeit = 0;
     spieler.schonzeit = 1;   // 1 Sekunde Schonfrist beim Start
 
     hindernisse = [];
@@ -1185,7 +1305,7 @@ function weltGeschafft() {
         weltIndex = 0;
         runde++;
         el("welt-geschafft-text").textContent =
-            "Alle 24 Welten entdeckt! 🏆 Möchtest du weiterspielen? Jetzt geht's noch flotter …";
+            `Alle ${WELTEN.length} Welten entdeckt! 🏆 Möchtest du weiterspielen? Jetzt geht's noch flotter …`;
     } else {
         const naechste = WELTEN[weltIndex];
         el("welt-geschafft-text").textContent =

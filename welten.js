@@ -3,10 +3,13 @@
    ================================================================
    Diese Datei enthält drei Dinge:
 
-   1. WELTEN  – Die Liste der 24 Welten (Level). Jede Welt hat eigene
+   1. WELTEN  – Die Liste der 44 Welten (Level). Jede Welt hat eigene
                 Farben, eigene Hindernis-Emojis und eigene Tiere, die
                 harmlos im Hintergrund mitschwimmen. Neue Welten
                 kannst du einfach unten an die Liste anhängen!
+                Extra: Welten mit "dunkel" sind TIEFSEE-Welten –
+                dort ist es duster und man sieht nur im Lichtkreis
+                um den Fisch richtig gut (0 = hell, 1 = stockfinster).
 
    2. MUSTER  – Die "Bau-Muster" für das Leveldesign. Ein Muster ist
                 ein kleines Stück Strecke (z. B. ein Felsen-Slalom
@@ -158,6 +161,7 @@ const WELTEN = [
         farbeOben: "#2c3e70", farbeUnten: "#0b1030", farbeBoden: "#3a3a5c",
         emojis: { fels: "🪨", pflanze: "🪼" },
         tiere: ["🪼", "🦑", "🐙"],
+        dunkel: 0.2,
         musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
     },
     {
@@ -166,6 +170,7 @@ const WELTEN = [
         farbeOben: "#1a2a4e", farbeUnten: "#05081c", farbeBoden: "#2a2a3c",
         emojis: { fels: "🪨", pflanze: "🪼" },
         tiere: ["🦑", "🐙", "🐡"],
+        dunkel: 0.35,
         musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 4 },
     },
     {
@@ -231,6 +236,170 @@ const WELTEN = [
         emojis: { fels: "💎", pflanze: "🌺" },
         tiere: ["🧜‍♀️", "🐬", "🐠"],
         musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
+    },
+    {
+        name: "Kiesel-Welt",
+        emoji: "🪨",
+        farbeOben: "#9aa8b5", farbeUnten: "#4a5560", farbeBoden: "#b5b0a0",
+        emojis: { fels: "🪨", pflanze: "🌱" },
+        tiere: ["🐟", "🦀", "🐌"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 5 },
+    },
+    {
+        name: "Schildkröten-Fluss",
+        emoji: "🐢",
+        farbeOben: "#7cc47f", farbeUnten: "#1a5c3a", farbeBoden: "#8a7a4a",
+        emojis: { fels: "🪵", pflanze: "🌿" },
+        tiere: ["🐢", "🐢", "🐸"],
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 2, pflanzenwald: 4, felsengarten: 2 },
+    },
+    {
+        name: "Fische-Meer",
+        emoji: "🐟",
+        farbeOben: "#4fb5e5", farbeUnten: "#0d4a8c", farbeBoden: "#d8c88a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🐟", "🐠", "🐟"],
+        musterGewichte: { freiesWasser: 5, slalom: 2, torbogen: 2, pflanzenwald: 2, felsengarten: 1 },
+    },
+    {
+        name: "Hummer-Bucht",
+        emoji: "🦞",
+        farbeOben: "#d58a6f", farbeUnten: "#5c2a1a", farbeBoden: "#c8a87a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🦞", "🦀", "🐟"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 3 },
+    },
+    {
+        name: "Flamingo-Lagune",
+        emoji: "🦩",
+        farbeOben: "#f5a5c5", farbeUnten: "#8a3a6b", farbeBoden: "#f0d5b5",
+        emojis: { fels: "🪨", pflanze: "🌺" },
+        tiere: ["🦩", "🐠", "🐟"],
+        musterGewichte: { freiesWasser: 4, slalom: 2, torbogen: 2, pflanzenwald: 3, felsengarten: 1 },
+    },
+    {
+        name: "Otter-Fluss",
+        emoji: "🦦",
+        farbeOben: "#8fb5a5", farbeUnten: "#2c5c4a", farbeBoden: "#7a6a4a",
+        emojis: { fels: "🪵", pflanze: "🌱" },
+        tiere: ["🦦", "🐟", "🐢"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 2, pflanzenwald: 3, felsengarten: 2 },
+    },
+    {
+        name: "Kugelfisch-Bucht",
+        emoji: "🐡",
+        farbeOben: "#f5d57f", farbeUnten: "#9a6b1a", farbeBoden: "#e8d8a0",
+        emojis: { fels: "🪸", pflanze: "🌿" },
+        tiere: ["🐡", "🐡", "🐠"],
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 3, pflanzenwald: 2, felsengarten: 2 },
+    },
+    {
+        name: "Anemonen-Garten",
+        emoji: "🌺",
+        farbeOben: "#f58a9a", farbeUnten: "#7c1a4a", farbeBoden: "#e8b8c8",
+        emojis: { fels: "🪸", pflanze: "🌺" },
+        tiere: ["🐠", "🦐", "🐟"],
+        musterGewichte: { freiesWasser: 2, slalom: 2, torbogen: 2, pflanzenwald: 5, felsengarten: 2 },
+    },
+    {
+        name: "Leucht-Tiefe",
+        emoji: "🪼",
+        farbeOben: "#1a3a5c", farbeUnten: "#050a20", farbeBoden: "#2a3a4c",
+        emojis: { fels: "🪨", pflanze: "🪼" },
+        tiere: ["🪼", "🪼", "🦑"],
+        dunkel: 0.35,
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 2, pflanzenwald: 4, felsengarten: 2 },
+    },
+    {
+        name: "Anglerfisch-Abgrund",
+        emoji: "🎣",
+        farbeOben: "#12203c", farbeUnten: "#03050f", farbeBoden: "#1c2430",
+        emojis: { fels: "🪨", pflanze: "🪼" },
+        tiere: ["🦑", "🐙", "🪼"],
+        dunkel: 0.5,
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 1, felsengarten: 4 },
+    },
+    {
+        name: "Mitternachts-Tiefsee",
+        emoji: "🌑",
+        farbeOben: "#0e1530", farbeUnten: "#020308", farbeBoden: "#161a28",
+        emojis: { fels: "🪨", pflanze: "🪼" },
+        tiere: ["🐙", "🦑", "🐡"],
+        dunkel: 0.55,
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 3, pflanzenwald: 1, felsengarten: 3 },
+    },
+    {
+        name: "Sandbank-Bucht",
+        emoji: "🏝️",
+        farbeOben: "#7fdce5", farbeUnten: "#2a8a9a", farbeBoden: "#f0e0b0",
+        emojis: { fels: "🐚", pflanze: "🌱" },
+        tiere: ["🐠", "🐟", "🦀"],
+        musterGewichte: { freiesWasser: 5, slalom: 2, torbogen: 2, pflanzenwald: 1, felsengarten: 2 },
+    },
+    {
+        name: "Kelp-Wald",
+        emoji: "🌿",
+        farbeOben: "#4a9a6b", farbeUnten: "#0f3c28", farbeBoden: "#5c5a3a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🦦", "🐟", "🐠"],
+        musterGewichte: { freiesWasser: 1, slalom: 2, torbogen: 2, pflanzenwald: 6, felsengarten: 1 },
+    },
+    {
+        name: "Gletscher-See",
+        emoji: "❄️",
+        farbeOben: "#cfeaf5", farbeUnten: "#5a9ac5", farbeBoden: "#e8f2fa",
+        emojis: { fels: "🧊", pflanze: "🌿" },
+        tiere: ["🦭", "🐧", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 4, torbogen: 3, pflanzenwald: 1, felsengarten: 3 },
+    },
+    {
+        name: "Schwanen-See",
+        emoji: "🦢",
+        farbeOben: "#b5d5e5", farbeUnten: "#3a6b8a", farbeBoden: "#a8b89a",
+        emojis: { fels: "🪨", pflanze: "🌱" },
+        tiere: ["🦢", "🦆", "🐟"],
+        musterGewichte: { freiesWasser: 4, slalom: 2, torbogen: 2, pflanzenwald: 3, felsengarten: 1 },
+    },
+    {
+        name: "Biber-Bach",
+        emoji: "🦫",
+        farbeOben: "#a5b57f", farbeUnten: "#3c4a1a", farbeBoden: "#6b5a3a",
+        emojis: { fels: "🪵", pflanze: "🌱" },
+        tiere: ["🦫", "🐟", "🐸"],
+        musterGewichte: { freiesWasser: 2, slalom: 3, torbogen: 3, pflanzenwald: 3, felsengarten: 2 },
+    },
+    {
+        name: "Frosch-Teich",
+        emoji: "🐸",
+        farbeOben: "#8fc47f", farbeUnten: "#2a4a1a", farbeBoden: "#5a6a3a",
+        emojis: { fels: "🪨", pflanze: "🌱" },
+        tiere: ["🐸", "🐸", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 2, pflanzenwald: 4, felsengarten: 2 },
+    },
+    {
+        name: "Enten-Teich",
+        emoji: "🦆",
+        farbeOben: "#a5cfe5", farbeUnten: "#4a7a5c", farbeBoden: "#9a8a5a",
+        emojis: { fels: "🪨", pflanze: "🌿" },
+        tiere: ["🦆", "🦆", "🐟"],
+        musterGewichte: { freiesWasser: 4, slalom: 2, torbogen: 2, pflanzenwald: 3, felsengarten: 1 },
+    },
+    {
+        name: "Schnecken-Riff",
+        emoji: "🐌",
+        farbeOben: "#d5c4a5", farbeUnten: "#6b5a3c", farbeBoden: "#c8b88a",
+        emojis: { fels: "🐚", pflanze: "🌿" },
+        tiere: ["🐌", "🐠", "🐟"],
+        musterGewichte: { freiesWasser: 3, slalom: 2, torbogen: 3, pflanzenwald: 3, felsengarten: 2 },
+    },
+    {
+        name: "Sternschnuppen-See",
+        emoji: "🌠",
+        farbeOben: "#2a2a6b", farbeUnten: "#0a0a25", farbeBoden: "#3a3a5a",
+        emojis: { fels: "💎", pflanze: "🪼" },
+        tiere: ["⭐", "🐟", "🪼"],
+        dunkel: 0.3,
+        musterGewichte: { freiesWasser: 3, slalom: 3, torbogen: 2, pflanzenwald: 2, felsengarten: 3 },
     },
 ];
 
@@ -454,11 +623,19 @@ function abzweigungBauen(startH) {
         let art;
         if (i === hoehlenWeg) {
             art = "hoehle";
-            // Höhlen-Eingang: viele Steine drumherum, damit man ihn erkennt.
+            // Höhlen-Eingang: GANZ VIELE Steine drumherum, wie ein
+            // richtiges Felsentor – so erkennt man ihn sofort.
             // (Die Steine bekommen immer das 🪨-Emoji, egal in welcher Welt.)
-            for (let h = startH + 40; h < startH + laenge; h += 10) {
-                hindernisse.push({ x: mitte - (bis - von) * 0.32, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
-                hindernisse.push({ x: mitte + (bis - von) * 0.32, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
+            const halb = (bis - von) / 2;
+            for (let h = startH + 35; h < startH + laenge; h += 8) {
+                hindernisse.push({ x: mitte - halb * 0.62, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
+                hindernisse.push({ x: mitte + halb * 0.62, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
+            }
+            // Der Steinbogen ÜBER dem Eingang (mit Lücke in der Mitte,
+            // durch die man hineinschwimmt):
+            for (let dx = -halb * 0.62; dx <= halb * 0.62; dx += 7) {
+                if (Math.abs(dx) < halb * 0.3) continue;   // Der Eingang bleibt frei
+                hindernisse.push({ x: mitte + dx, h: startH + laenge - 4 + zufall(-1.5, 1.5), r: 4.5, art: "fels", emoji: "🪨" });
             }
         } else if (Math.random() < 0.6) {
             art = "garnelen";
@@ -502,8 +679,9 @@ const HOEHLEN_MUSTER = {
         const hindernisse = [];
         const garnelen = [];
 
-        // Die Höhlenwände links und rechts:
-        for (let h = startH; h < startH + laenge; h += 9) {
+        // Die Höhlenwände links und rechts (schön dicht, damit es
+        // richtig nach Fels aussieht):
+        for (let h = startH; h < startH + laenge; h += 7) {
             hindernisse.push({ x: -rand + zufall(1, 4), h: h, r: 6, art: "fels", emoji: "🪨" });
             hindernisse.push({ x: rand - zufall(1, 4), h: h, r: 6, art: "fels", emoji: "🪨" });
         }
@@ -536,6 +714,37 @@ const HOEHLEN_MUSTER = {
             { x: lueckeX, h: torH - 12 },
             { x: lueckeX, h: torH + 12 },
         ];
+        return { laenge, hindernisse, garnelen };
+    },
+
+    /* ---------- STEINFELD ----------
+       Überall Felsbrocken! Nur ein gewundener Pfad schlängelt sich
+       hindurch – die Garnelen zeigen ihn. So sieht eine echte,
+       steinige Höhle aus. */
+    steinfeld(startH) {
+        const laenge = zufall(70, 100);
+        const rand = spielfeldBreite() / 2;
+        const hindernisse = [];
+        const garnelen = [];
+
+        // Die Höhlenwände:
+        for (let h = startH; h < startH + laenge; h += 7) {
+            hindernisse.push({ x: -rand + zufall(1, 3), h: h, r: 6, art: "fels", emoji: "🪨" });
+            hindernisse.push({ x: rand - zufall(1, 3), h: h, r: 6, art: "fels", emoji: "🪨" });
+        }
+        // Ein gewundener freier Pfad – rundherum liegen dicke Brocken:
+        for (let h = startH + 12; h < startH + laenge - 8; h += zufall(11, 15)) {
+            const pfadX = Math.sin(h * 0.05) * rand * 0.4;   // Der Schlängel-Weg
+            for (let versuch = 0; versuch < 3; versuch++) {
+                const x = zufall(-rand * 0.75, rand * 0.75);
+                // Nur dort einen Stein hinlegen, wo der Pfad frei bleibt:
+                if (Math.abs(x - pfadX) > 15) {
+                    hindernisse.push({ x: x, h: h + zufall(-3, 3), r: zufall(4.5, 7), art: "fels", emoji: "🪨" });
+                }
+            }
+            // Alle paar Reihen eine Garnele auf dem Pfad als Wegweiser:
+            if (Math.random() < 0.6) garnelen.push({ x: pfadX, h: h + 5 });
+        }
         return { laenge, hindernisse, garnelen };
     },
 };

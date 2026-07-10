@@ -43,6 +43,14 @@ const KONFIG = {
     },
 
     /* ------------------------------------------------------------
+       PFLANZEN (weiche Hindernisse)
+       ------------------------------------------------------------ */
+    pflanzen: {
+        bremsFaktor: 0.55,     // Im Pflanzen-Dickicht schwimmt der Fisch nur so schnell (0.55 = 55 % Tempo)
+        nachwirkung: 0.25,     // So viele Sekunden wirkt die Bremse nach dem Durchschwimmen noch nach
+    },
+
+    /* ------------------------------------------------------------
        GARNELEN (Sammelobjekte)
        ------------------------------------------------------------ */
     garnelen: {
@@ -56,10 +64,13 @@ const KONFIG = {
        DER HAI (der Angreifer – kommt von unten!)
        ------------------------------------------------------------ */
     angreifer: {
-        tempoFaktor: 1.10,     // Hai-Tempo im Verhältnis zum Fisch-Grundtempo
-                               // (1.10 = etwas schneller als der Fisch OHNE Boost,
-                               //  aber deutlich langsamer als MIT Boost!)
-        radius: 6.0,           // Größe des Hais (Radius in E) – schön groß, damit man ihn richtig sieht!
+        tempoFaktor: 1.06,     // Hai-Tempo im Verhältnis zum Fisch-Grundtempo
+                               // (1.06 = nur ein kleines bisschen schneller als der Fisch
+                               //  OHNE Boost – er kommt LANGSAM von hinten näher!)
+        radius: 7.0,           // Größe des Hais (Radius in E) – schön groß und breit, damit man ihn richtig sieht!
+        startAbstand: 55,      // So weit unter dem Fisch taucht der Hai auf (in E)
+        fluchtTempoMin: 0.6,   // Wenn der Hai aufgibt, entfernt er sich LANGSAM wieder:
+        fluchtTempoMax: 0.9,   // sein Abtauch-Tempo liegt zufällig zwischen diesen Faktoren
         spawnAbstand: 50,      // Neuer Hai frühestens alle X Sekunden …
         spawnZufall: 25,       // … plus zufällig 0 bis X Sekunden obendrauf
         fluchtAbstand: 55,     // Ist der Hai so weit (in E) abgehängt → er gibt auf
@@ -77,7 +88,7 @@ const KONFIG = {
         minLaenge: 150,        // Eine Höhle ist mindestens so lang (in E) …
         maxLaenge: 230,        // … und höchstens so lang
         chance: 0.7,           // Wahrscheinlichkeit, dass eine Abzweigung einen Höhlen-Eingang hat (0.7 = 70 %)
-        dunkelheit: 0.8,       // Wie dunkel es in der Höhle wird (0 = gar nicht, 1 = stockfinster)
+        dunkelheit: 0.85,      // Wie dunkel es in der Höhle wird (0 = gar nicht, 1 = stockfinster)
     },
 
     /* ------------------------------------------------------------
