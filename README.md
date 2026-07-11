@@ -1,7 +1,8 @@
 # 🐟 Entdeckerfisch
 
-Ein kindgerechtes Browser-Spiel von **✨ Jonfi Studios ✨** – für Kinder ab ca. 4 Jahren,
-komplett für Smartphones und Touch-Steuerung optimiert.
+Ein kindgerechtes Browser-Spiel von **✨ JONFIE STUDIOS ✨** (der Spieleschmiede
+hinter dem *Uhrzeit-Uhu*) – für Kinder ab ca. 4 Jahren, komplett für Smartphones
+und Touch-Steuerung optimiert. Als **PWA installierbar** und offline spielbar.
 
 Ein kleiner Fisch schwimmt von ganz unten **nach oben zur Wasseroberfläche** –
 das ist das Ziel! Unterwegs: Garnelen fressen 🦐, wachsen ✨, dem Hai entkommen 🦈,
@@ -100,11 +101,12 @@ python3 -m http.server 8000
 
 | Datei | Inhalt |
 |---|---|
-| `config.js` | **Alle Stellschrauben**: Geschwindigkeiten, Spawn-Raten, Größen, Höhlen-Dunkelheit … Hier zuerst schauen, wenn du das Spiel leichter/schwerer machen willst! |
+| `config.js` | **Alle Stellschrauben**: Geschwindigkeiten, Spawn-Raten, Größen, Höhlen-Dunkelheit, Kamera-Überbreite, Parallax-Blasen … Hier zuerst schauen, wenn du das Spiel leichter/schwerer machen willst! |
 | `welten.js` | Die **44 Welten** (Farben, Emojis, Tiere, Häufigkeit der Muster) und die **Bau-Muster** des Leveldesigns (Slalom, Torbogen, Abzweigung, Höhlen-Gänge …) |
 | `spiel.js` | Die Spiel-Logik: Bewegung, Hai-KI, Höhlen, Kollisionen, Zeichnen, Sound, Menüs – in 14 kommentierte Abschnitte gegliedert |
 | `index.html` | Grundgerüst und die Menü-Bildschirme (Start, Pause, Einstellungen ⚙️) |
 | `style.css` | Aussehen der Menüs und Anzeigen |
+| `manifest.webmanifest`, `sw.js`, `icon.svg` | Die **PWA**: App-Manifest, Service Worker (offline, cache-first) und das App-Icon. Bei Änderungen an den Spieldateien die Version in `sw.js` **und** die `?v=`-Nummern in `index.html` hochzählen! |
 
 Der komplette Code ist ausführlich **auf Deutsch kommentiert**.
 

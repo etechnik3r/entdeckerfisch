@@ -97,15 +97,39 @@ function bildschirmAnpassen() {
 window.addEventListener("resize", bildschirmAnpassen);
 bildschirmAnpassen();
 
-// Wie breit ist das Spielfeld? Auf Handys der ganze Bildschirm,
-// auf großen Bildschirmen höchstens maxBreite E (mittig zentriert):
+// Wie breit ist das Spielfeld? Die Welt ist BREITER als der Bildschirm
+// (ueberBreite, z. B. 12 % mehr) – schwimmt der Fisch zur Seite, gleitet
+// die Kamera sanft mit und gibt den Blick auf den Rand frei. Auf großen
+// Bildschirmen höchstens maxBreite E:
 function spielfeldBreite() {
-    return Math.min(schirmBreiteE, KONFIG.spielfeld.maxBreite);
+    return Math.min(schirmBreiteE * KONFIG.spielfeld.ueberBreite, KONFIG.spielfeld.maxBreite);
 }
 
 // Der Spieler-Fisch wird immer bei 72 % der Bildschirmhöhe gezeichnet.
 // (Die Welt zieht an ihm vorbei nach unten – so hat man freie Sicht nach OBEN.)
 const FISCH_SCHIRM_Y = 72;
+
+/* ---------- DIE SEITWÄRTS-KAMERA ----------
+   Weil die Spielwelt über den Bildschirm hinausragt, folgt die Kamera
+   dem Fisch auch nach LINKS und RECHTS: Lenkt man zur Seite, driftet
+   die ganze Welt weich in die Gegenrichtung – als würde man wirklich
+   ein Stück Meer weiterschwimmen. */
+let kameraX = 0;   // Wie weit die Kamera gerade zur Seite geschoben ist (in E)
+
+// Wohin will die Kamera? Steht der Fisch ganz links, zeigt sie den
+// linken Weltrand – steht er in der Mitte, schaut sie geradeaus:
+function kameraXZiel() {
+    const ueberhang = Math.max(0, (spielfeldBreite() - schirmBreiteE) / 2);
+    const grenze = spielfeldBreite() / 2 - fischRadius() - KONFIG.spielfeld.randAbstand;
+    if (ueberhang <= 0 || grenze <= 0) return 0;
+    return Math.max(-1, Math.min(1, spieler.x / grenze)) * ueberhang;
+}
+
+// Die Kamera gleitet WEICH zu ihrem Ziel (kein hartes Ruckeln):
+function kameraGleiten(dt) {
+    const weichheit = 1 - Math.exp(-KONFIG.spielfeld.kameraWeichheit * dt);
+    kameraX += (kameraXZiel() - kameraX) * weichheit;
+}
 
 
 /* ================================================================
@@ -287,9 +311,11 @@ let fingerLiegt = false;   // Liegt gerade ein Finger auf dem Bildschirm?
 let tippStartZeit = 0;     // Wann wurde der Finger aufgesetzt? (für Tipp-Erkennung)
 let tippStartX = 0;        // Wo wurde der Finger aufgesetzt?
 
-// Rechnet eine Finger-Position (Pixel) in Spielfeld-x um (E, Mitte = 0):
+// Rechnet eine Finger-Position (Pixel) in Spielfeld-x um (E, Mitte = 0).
+// Die Kamera-Verschiebung wird mitgerechnet: Der Fisch schwimmt immer
+// GENAU zu der Stelle der Welt, auf der der Finger liegt:
 function fingerZuX(clientX) {
-    return (clientX - breitePx / 2) / E;
+    return kameraX + (clientX - breitePx / 2) / E;
 }
 
 canvas.addEventListener("pointerdown", (ereignis) => {
@@ -411,19 +437,24 @@ function weltWeiterbauen() {
     // Ab und zu Hintergrund-Tiere der Welt dazustellen. Die Tiere
     // sind völlig harmlos – wenn man über sie schwimmt, passiert NICHTS.
     // In Höhlen schwimmen andere Tiere als draußen!
-    if (Math.random() < 0.02 && tiere.length < 8) {
-        const liste = hoehleDunkel() > 0.3 ? HOEHLEN_TIERE : aktuelleWelt().tiere;
+    if (Math.random() < 0.03 && tiere.length < 12) {
+        const inDunkelheit = hoehleDunkel() > 0.3;
+        const liste = inDunkelheit ? HOEHLEN_TIERE : aktuelleWelt().tiere;
         // Tiere starten außerhalb des BILDSCHIRMS (nicht nur des Spielfelds),
         // damit sie auch auf breiten Bildschirmen von außen hereinschwimmen:
         const rand = schirmBreiteE / 2;
         const vonLinks = Math.random() < 0.5;
-        const emoji = zufallAus(liste);
+        // Meistens kommen die Stamm-Tiere der Welt vorbei – aber ab und zu
+        // schwimmt ein ÜBERRASCHUNGS-GAST aus dem großen Meer-Pool herein
+        // (nur draußen im Hellen, nicht in der Höhle):
+        const emoji = (!inDunkelheit && Math.random() < 0.25)
+            ? zufallAus(GAST_TIERE) : zufallAus(liste);
         // Schnelle Schwimmer ziehen große Wellen-Bögen durchs Wasser,
         // gemütliche Tiere wackeln nur sanft auf und ab:
         const flink = emoji === "🐬" || emoji === "🦭" || emoji === "🐧";
         // Delfine & Fische kommen gern als kleine Gruppe angeschwommen:
         const gruppe = Math.random() < 0.4 ? zufallGanz(2, 3) : 1;
-        for (let i = 0; i < gruppe && tiere.length < 8; i++) {
+        for (let i = 0; i < gruppe && tiere.length < 12; i++) {
             tiere.push({
                 x: (vonLinks ? -rand - 8 : rand + 8) + (vonLinks ? -1 : 1) * i * zufall(5, 9),
                 h: spieler.h + zufall(20, 85) + (i === 0 ? 0 : zufall(-7, 7)),
@@ -524,8 +555,20 @@ function hindernisseSchmuecken(hindernisListe) {
         if (!hi.emoji) hi.emoji = hindernisEmoji(welt, hi.art);
         if (hi.art === "fels") {
             hi.flip = Math.random() < 0.5;
-            hi.dreh = zufall(-0.3, 0.3);
-            hi.deko = zufall(0.92, 1.18);   // Größen-Streuung – nur fürs Bild!
+            hi.dreh = zufall(-0.45, 0.45);
+            hi.deko = zufall(0.85, 1.28);   // Größen-Streuung – nur fürs Bild!
+            // Manche Felsen bekommen ein kleines BEGLEIT-STEINCHEN daneben
+            // (rein dekorativ, ohne eigene Hitbox) – so entstehen natürliche
+            // Steinhaufen statt lauter einzelner Klötze:
+            if (Math.random() < 0.4) {
+                hi.beistein = {
+                    dx: (Math.random() < 0.5 ? -1 : 1) * zufall(0.8, 1.15),  // seitlich (in Fels-Radien)
+                    dy: zufall(0.35, 0.7),                                    // etwas tiefer versetzt
+                    groesse: zufall(0.3, 0.5),
+                    emoji: hindernisEmoji(welt, "fels"),
+                    flip: Math.random() < 0.5,
+                };
+            }
         }
     }
 }
@@ -758,7 +801,7 @@ function kollisionenPruefen(dt) {
             && spieler.h < zone.vonH && zone.vonH - spieler.h < 55) {
             zone.hinweisGezeigt = true;
             const alleHoehle = zone.kanaele.every(k => k.art === "hoehle");
-            meldung(alleHoehle ? "Alle Wege führen in die Höhle! 🕳️"
+            meldung(alleHoehle ? "Alle Wege: Höhle! 🕳️"
                                : "Wähle deinen Weg! 🤔");
         }
 
@@ -896,7 +939,7 @@ function hoehleUpdate(dt) {
     // Das Ende der Höhle erreicht? Wieder raus ins Helle!
     if (hoehle && spieler.h > hoehle.endeH) {
         hoehle = null;
-        meldung("Wieder im hellen Wasser! ☀️");
+        meldung("Wieder hell! ☀️");
     }
 }
 
@@ -944,7 +987,7 @@ function angreiferUpdate(dt) {
             bewX: 0, bewH: 1,       // Seine Schwimmrichtung (fürs Zeichnen)
         };
         haisGesamt++;
-        meldung("Achtung, ein Hai nähert sich von hinten! 🦈");
+        meldung("Achtung, Hai! 🦈");
         SOUND.angreifer();
     }
     if (!angreifer) return;
@@ -1030,8 +1073,8 @@ function angreiferUpdate(dt) {
             || (a.verfolgZeit > KONFIG.angreifer.maxVerfolgung && abstand > 25))) {
         meldung(zufallAus([
             "Hai abgehängt! 🎉",
-            "Der Hai schwimmt in den falschen Gang! 🦈💨",
-            "Der Hai gibt auf und zieht davon! 🎉",
+            "Hai ausgetrickst! 🦈💨",
+            "Der Hai gibt auf! 🎉",
         ]));
         SOUND.abgehaengt();
         haiGibtAuf(a);
@@ -1078,9 +1121,9 @@ function kameraH() {
     return Math.min(spieler.h, maxKamera);
 }
 
-// Rechnet Welt-Positionen in Bildschirm-Pixel um:
+// Rechnet Welt-Positionen in Bildschirm-Pixel um (inkl. Seitwärts-Kamera):
 function schirmX(x) {
-    return breitePx / 2 + x * E;
+    return breitePx / 2 + (x - kameraX) * E;
 }
 function schirmY(h) {
     return (FISCH_SCHIRM_Y - (h - kameraH())) * E;
@@ -1182,77 +1225,140 @@ function zeichnePflanze(emoji, px, py, groessePx, wackeln, bodenFarbe) {
     ctx.restore();
 }
 
-/* ---------- DER HAI – eine richtige, selbstgemalte Figur! ----------
-   Kein kleines Emoji mehr: Der Hai wird mit Körper, Bauch, Flossen,
-   Auge und Maul direkt aufs Canvas gemalt und dreht sich immer in
-   seine Schwimmrichtung. s = seine Größe in Pixeln.
+/* ---------- DER HAI – jetzt ein RICHTIGER Hai! ----------
+   Torpedo-Körper mit spitzer Schnauze, Sichel-Schwanzflosse,
+   hoher Rückenflosse, Kiemenschlitzen – und einem GRIMMIGEN
+   Blick samt spitzer Zähne. Vor DEM will man wegschwimmen!
+   Er dreht sich immer in seine Schwimmrichtung. s = Größe in Pixeln.
    schnapp (0–1): Wie weit er das Maul aufreißt, wenn er nah dran ist! */
 function zeichneHai(px, py, s, winkel, phase, schnapp = 0) {
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(winkel);
     const wedeln = Math.sin(phase) * 0.3;
+    const ruecken = "#4e6375";   // Kaltes Grau-Blau – echte Hai-Farbe
+    const flosse  = "#415466";
+    const bauch   = "#d7e2ea";
 
-    // Schwanzflosse (wedelt hin und her):
-    ctx.fillStyle = "#5c7386";
+    // Die Schwanzflosse: die typische Hai-SICHEL – der obere Arm ist
+    // deutlich länger als der untere (wedelt beim Schwimmen hin und her):
     ctx.save();
-    ctx.translate(-1.5 * s, 0);
+    ctx.translate(-1.75 * s, 0);
     ctx.rotate(wedeln);
+    ctx.fillStyle = flosse;
     ctx.beginPath();
-    ctx.moveTo(0.2 * s, 0);
-    ctx.lineTo(-0.8 * s, -0.9 * s);
-    ctx.lineTo(-0.45 * s, 0);
-    ctx.lineTo(-0.8 * s, 0.9 * s);
+    ctx.moveTo(0.3 * s, 0);
+    ctx.quadraticCurveTo(-0.3 * s, -0.2 * s, -0.6 * s, -1.2 * s);    // langer oberer Arm
+    ctx.quadraticCurveTo(-0.28 * s, -0.4 * s, -0.4 * s, -0.02 * s);  // Innenkante
+    ctx.quadraticCurveTo(-0.42 * s, 0.25 * s, -0.72 * s, 0.65 * s);  // kurzer unterer Arm
+    ctx.quadraticCurveTo(-0.12 * s, 0.32 * s, 0.3 * s, 0);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
 
-    // Rückenflosse (die berühmte Hai-Flosse!):
+    // Die Rückenflosse: hoch, spitz und nach hinten gebogen –
+    // die berühmte Flosse, die durchs Wasser schneidet:
+    ctx.fillStyle = flosse;
     ctx.beginPath();
-    ctx.moveTo(0.0 * s, -0.65 * s);
-    ctx.quadraticCurveTo(-0.5 * s, -1.8 * s, -1.0 * s, -0.65 * s);
+    ctx.moveTo(0.55 * s, -0.6 * s);
+    ctx.quadraticCurveTo(0.1 * s, -1.75 * s, -0.6 * s, -1.55 * s);   // Spitze, nach hinten geneigt
+    ctx.quadraticCurveTo(-0.45 * s, -0.95 * s, -0.8 * s, -0.5 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Kleine zweite Flosse kurz vor dem Schwanz:
+    ctx.beginPath();
+    ctx.moveTo(-1.15 * s, -0.42 * s);
+    ctx.quadraticCurveTo(-1.4 * s, -0.85 * s, -1.65 * s, -0.72 * s);
+    ctx.quadraticCurveTo(-1.55 * s, -0.45 * s, -1.65 * s, -0.28 * s);
     ctx.closePath();
     ctx.fill();
 
-    // Der Körper (schön breit – ein richtig stattlicher Hai!):
-    ctx.fillStyle = "#7d93a6";
+    // Der Körper: ein Torpedo – vorne läuft er in eine SPITZE
+    // Schnauze aus, hinten wird er zum Schwanzstiel ganz schlank:
+    ctx.fillStyle = ruecken;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 1.7 * s, 0.95 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Der helle Bauch:
-    ctx.fillStyle = "#dfe9f0";
-    ctx.beginPath();
-    ctx.ellipse(0.15 * s, 0.38 * s, 1.3 * s, 0.5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Die Seitenflosse:
-    ctx.fillStyle = "#5c7386";
-    ctx.beginPath();
-    ctx.moveTo(0.1 * s, 0.25 * s);
-    ctx.lineTo(-0.55 * s, 1.1 * s);
-    ctx.lineTo(-0.45 * s, 0.3 * s);
+    ctx.moveTo(2.1 * s, 0.05 * s);                                   // Schnauzenspitze
+    ctx.quadraticCurveTo(1.4 * s, -0.78 * s, 0.2 * s, -0.8 * s);     // Stirn → Rücken
+    ctx.quadraticCurveTo(-1.1 * s, -0.72 * s, -1.8 * s, -0.15 * s);  // Rücken → Schwanzstiel
+    ctx.quadraticCurveTo(-1.1 * s, 0.6 * s, 0.3 * s, 0.72 * s);      // Unterseite hinten
+    ctx.quadraticCurveTo(1.5 * s, 0.62 * s, 2.1 * s, 0.05 * s);      // Bauch → Schnauze
     ctx.closePath();
     ctx.fill();
 
-    // Das Auge:
-    ctx.fillStyle = "white";
+    // Der helle Bauch (Haie sind unten hell, oben dunkel):
+    ctx.fillStyle = bauch;
     ctx.beginPath();
-    ctx.arc(0.95 * s, -0.25 * s, 0.2 * s, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#1a2530";
-    ctx.beginPath();
-    ctx.arc(1.0 * s, -0.25 * s, 0.1 * s, 0, Math.PI * 2);
+    ctx.moveTo(1.85 * s, 0.18 * s);
+    ctx.quadraticCurveTo(1.2 * s, 0.72 * s, 0.1 * s, 0.7 * s);
+    ctx.quadraticCurveTo(-0.9 * s, 0.58 * s, -1.55 * s, 0.0 * s);
+    ctx.quadraticCurveTo(-0.7 * s, 0.28 * s, 0.4 * s, 0.3 * s);
+    ctx.quadraticCurveTo(1.3 * s, 0.28 * s, 1.85 * s, 0.18 * s);
+    ctx.closePath();
     ctx.fill();
 
-    // Das Maul (ein freundlich-gefährlicher Bogen) – kurz vorm
-    // Zuschnappen reißt der Hai es sichtbar weiter auf:
-    ctx.strokeStyle = "#3a4a5a";
-    ctx.lineWidth = Math.max(1.5, (0.08 + schnapp * 0.12) * s);
+    // Die Seitenflosse: schwungvoll nach hinten-unten gepfeilt:
+    ctx.fillStyle = flosse;
     ctx.beginPath();
-    ctx.arc(0.85 * s, 0.3 * s, (0.55 + schnapp * 0.3) * s,
-            Math.PI * 0.1, Math.PI * (0.55 + schnapp * 0.2));
-    ctx.stroke();
+    ctx.moveTo(0.6 * s, 0.35 * s);
+    ctx.quadraticCurveTo(0.15 * s, 1.25 * s, -0.55 * s, 1.35 * s);
+    ctx.quadraticCurveTo(-0.1 * s, 0.75 * s, -0.05 * s, 0.42 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Drei Kiemenschlitze (leicht gebogen – daran erkennt man den Hai!):
+    ctx.strokeStyle = "rgba(20, 32, 42, 0.5)";
+    ctx.lineWidth = Math.max(1, 0.06 * s);
+    ctx.lineCap = "round";
+    for (let i = 0; i < 3; i++) {
+        const gx = (0.42 + i * 0.17) * s;
+        ctx.beginPath();
+        ctx.moveTo(gx, -0.3 * s);
+        ctx.quadraticCurveTo(gx - 0.1 * s, 0, gx, 0.32 * s);
+        ctx.stroke();
+    }
+
+    // DAS MAUL: unter der Schnauze, grimmig heruntergezogen – und
+    // beim Schnapp-Spurt reißt es weit auf und zeigt die Zahnreihe!
+    const aufreissen = 0.16 + schnapp * 0.5;
+    ctx.fillStyle = "#2b1a22";   // Dunkler Rachen
+    ctx.beginPath();
+    ctx.moveTo(1.98 * s, 0.14 * s);
+    ctx.quadraticCurveTo(1.5 * s, 0.3 * s, 1.05 * s, 0.32 * s);                            // Oberkiefer-Linie
+    ctx.quadraticCurveTo(1.35 * s, (0.45 + aufreissen * 0.6) * s, 1.85 * s, (0.1 + aufreissen) * s);  // Unterkiefer
+    ctx.closePath();
+    ctx.fill();
+    // Spitze weiße Zähne entlang des Oberkiefers:
+    ctx.fillStyle = "#ffffff";
+    for (let i = 0; i < 4; i++) {
+        const t = i / 3;
+        const zx = (1.88 - t * 0.72) * s;
+        const zy = (0.19 + t * 0.11) * s;
+        ctx.beginPath();
+        ctx.moveTo(zx, zy);
+        ctx.lineTo(zx - 0.11 * s, zy);
+        ctx.lineTo(zx - 0.055 * s, zy + (0.14 + schnapp * 0.06) * s);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // DAS GRIMMIGE AUGE: kleine dunkle Pupille unter einer bösen,
+    // zur Schnauze hin herabgezogenen Braue – dieser Blick sagt:
+    // "Schwimm lieber schnell weg!"
+    ctx.fillStyle = "#f3eed8";
+    ctx.beginPath();
+    ctx.arc(1.3 * s, -0.3 * s, 0.17 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#141f2b";
+    ctx.beginPath();
+    ctx.arc(1.34 * s, -0.27 * s, 0.09 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ruecken;   // Die Braue hat die Körperfarbe (wie ein Lid)
+    ctx.beginPath();
+    ctx.moveTo(1.02 * s, -0.52 * s);
+    ctx.lineTo(1.55 * s, -0.27 * s);
+    ctx.lineTo(1.0 * s, -0.3 * s);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.restore();
 }
@@ -1277,6 +1383,9 @@ function allesZeichnen(zeitstempel) {
     verlauf.addColorStop(1, farbeUnten);
     ctx.fillStyle = verlauf;
     ctx.fillRect(0, 0, breitePx, hoehePx);
+
+    // ---------- 1b. Parallax-Blasen (ganz hinten, vor allem anderen) ----------
+    hintergrundBlasenZeichnen();
 
     // ---------- 2. Himmel & Wellen (wenn die Oberfläche in Sicht ist) ----------
     const oberflaecheY = schirmY(strecke);
@@ -1418,6 +1527,12 @@ function allesZeichnen(zeitstempel) {
         } else {
             // Felsen mit ihrer persönlichen Deko: gespiegelt, leicht
             // gedreht und in der Größe gestreut – mehr Varianz im Bild!
+            // Zuerst das kleine Begleit-Steinchen (liegt HINTER dem Fels):
+            if (hi.beistein) {
+                const bs = hi.beistein;
+                zeichneEmoji(bs.emoji, schirmX(hi.x + bs.dx * hi.r),
+                             hy + bs.dy * hi.r * E, hi.r * E * bs.groesse, bs.flip);
+            }
             zeichneEmoji(emoji, schirmX(hi.x), hy, hi.r * E * 1.15 * (hi.deko || 1),
                          hi.flip || false, hi.dreh || 0);
         }
@@ -1449,8 +1564,8 @@ function allesZeichnen(zeitstempel) {
         const ax = schirmX(a.x);
         const ay = schirmY(a.h);
         const s = KONFIG.angreifer.radius * E;
-        // Sichtbar, sobald ein Stück von ihm ins Bild ragt (1.9 × s ≈ seine halbe Länge):
-        if (ay - 1.9 * s < hoehePx) {
+        // Sichtbar, sobald ein Stück von ihm ins Bild ragt (2.2 × s ≈ seine halbe Länge):
+        if (ay - 2.2 * s < hoehePx) {
             // Der Hai dreht sich in seine Schwimmrichtung
             // (Bildschirm-y zeigt nach unten, Welt-h nach oben → Minus):
             const winkel = Math.atan2(-a.bewH, a.bewX);
@@ -1567,12 +1682,24 @@ function hexAusRgb(rgbText) {
 }
 
 /* ---------- WEGWEISER AN ABZWEIGUNGEN ----------
-   Über jedem offenen Gang einer nahenden Abzweigung schwebt ein
-   sanft auf- und abwippender, pulsierender Pfeil mit dem Symbol
-   des Weges. Die Wegweiser erscheinen, sobald die Abzweigung in
-   Sicht kommt, und verschwinden, sobald der Fisch sich für einen
-   Gang entschieden hat. */
+   Damit die Entscheidung "links, Mitte oder rechts?" schon von
+   Weitem klar wird, bekommt jeder offene Gang GLEICH DREI Hinweise:
+
+   1. Eine sanft leuchtende FARB-SPUR über die ganze Gang-Länge –
+      jede Weg-Art hat ihre eigene Farbe (Garnelen = gold, Pflanzen
+      = grün, Höhle = violett). So sieht man auf einen Blick, WELCHER
+      Gang WOHIN führt – ganz ohne Lesen!
+   2. Einen pulsierenden Pfeil in derselben Farbe über dem Eingang.
+   3. Das Symbol des Weges darunter (🦐 / 🌿 / 🕳️).
+
+   Alles erscheint beim Heranschwimmen und verschwindet, sobald sich
+   der Fisch für einen Gang entschieden hat. */
 const WEGWEISER_SYMBOL = { hoehle: "🕳️", garnelen: "🦐", pflanzen: "🌿" };
+const WEG_FARBEN = {
+    garnelen: { spur: "255, 214, 90",  pfeil: "rgba(255, 236, 150, 0.95)" },
+    pflanzen: { spur: "120, 230, 140", pfeil: "rgba(190, 245, 190, 0.95)" },
+    hoehle:   { spur: "155, 135, 255", pfeil: "rgba(205, 195, 255, 0.95)" },
+};
 
 function abzweigungWegweiser(zeitstempel) {
     for (const zone of zonen) {
@@ -1584,16 +1711,33 @@ function abzweigungWegweiser(zeitstempel) {
         const alpha = Math.max(0, Math.min(1, (85 - abstand) / 20));
         const wippen = Math.sin(zeitstempel * 0.004) * 0.8 * E;
         const puls = 1 + Math.sin(zeitstempel * 0.006) * 0.12;
+        const atmen = 0.75 + Math.sin(zeitstempel * 0.003) * 0.25;   // Die Spuren "atmen" sanft
 
         for (const k of zone.kanaele) {
+            if (k.weg) continue;   // Abgewählte Gänge zeigen nichts mehr an
+            const farbe = WEG_FARBEN[k.art] || WEG_FARBEN.garnelen;
             const mx = schirmX((k.von + k.bis) / 2);
+
+            // 1. Die leuchtende Farb-Spur durch den ganzen Gang: unten am
+            //    Eingang am kräftigsten, nach oben hin sanft auslaufend.
+            const spurLinks = schirmX(k.von) + 0.8 * E;
+            const spurBreite = (k.bis - k.von) * E - 1.6 * E;
+            const yOben = Math.max(-2, schirmY(zone.bisH));
+            const yUnten = Math.min(hoehePx + 2, schirmY(zone.vonH));
+            if (yUnten > 0 && yOben < hoehePx && spurBreite > 0) {
+                const spur = ctx.createLinearGradient(0, yOben, 0, yUnten);
+                spur.addColorStop(0, `rgba(${farbe.spur}, 0)`);
+                spur.addColorStop(1, `rgba(${farbe.spur}, ${0.16 * alpha * atmen})`);
+                ctx.fillStyle = spur;
+                ctx.fillRect(spurLinks, yOben, spurBreite, yUnten - yOben);
+            }
+
+            // 2. Der pulsierende Pfeil über dem Eingang:
             const my = schirmY(zone.vonH + 6) + wippen;
             if (my < -12 * E || my > hoehePx + 12 * E) continue;
             ctx.globalAlpha = alpha;
-
-            // Der leuchtende Pfeil nach oben (zeigt: hier geht ein Weg lang):
-            ctx.fillStyle = "rgba(255, 245, 160, 0.95)";
-            ctx.strokeStyle = "rgba(90, 70, 10, 0.5)";
+            ctx.fillStyle = farbe.pfeil;
+            ctx.strokeStyle = "rgba(40, 40, 60, 0.45)";
             ctx.lineWidth = 0.3 * E;
             const b = 2.6 * E * puls;   // Halbe Pfeil-Breite
             ctx.beginPath();
@@ -1608,10 +1752,10 @@ function abzweigungWegweiser(zeitstempel) {
             ctx.fill();
             ctx.stroke();
 
-            // Darunter das Symbol des Weges (🦐 / 🌿 / 🕳️):
+            // 3. Darunter das Symbol des Weges (🦐 / 🌿 / 🕳️):
             zeichneEmoji(WEGWEISER_SYMBOL[k.art] || "⬆️", mx, my + 6 * E, 1.9 * E);
+            ctx.globalAlpha = 1;
         }
-        ctx.globalAlpha = 1;
     }
 }
 
@@ -1620,43 +1764,101 @@ function abzweigungWegweiser(zeitstempel) {
    12. MELDUNGEN & PARTIKEL
    ================================================================ */
 
-// Zeigt eine große Text-Meldung in der Bildschirmmitte an:
+// Zeigt eine kurze Text-Meldung an. Die Meldungen sind bewusst DEZENT:
+// klein, einzeilig und ganz OBEN direkt unter den Anzeigen – so bleibt
+// die Spielfläche frei sichtbar (die Kinder lesen sowieso noch nicht,
+// die Emojis erzählen die Geschichte!):
 function meldung(text) {
-    meldungen.push({ text: text, leben: 2.5 });   // 2,5 Sekunden sichtbar
+    meldungen.push({ text: text, leben: 2.2 });   // 2,2 Sekunden sichtbar
 }
 
 function meldungenZeichnen() {
     let reihe = 0;
     for (const m of meldungen) {
         // Am Anfang "ploppt" die Meldung auf (wird schnell größer):
-        const plopp = Math.min(1, (2.5 - m.leben) * 6);
+        const plopp = Math.min(1, (2.2 - m.leben) * 6);
         // Am Ende blendet sie aus:
-        const sichtbar = Math.min(1, m.leben);
+        const sichtbar = Math.min(1, m.leben * 1.5);
         ctx.save();
-        ctx.globalAlpha = sichtbar;
-        ctx.translate(breitePx / 2, hoehePx * 0.22 + reihe * 8 * E);
+        ctx.globalAlpha = sichtbar * 0.92;
+        ctx.translate(breitePx / 2, hoehePx * 0.115 + reihe * 5.5 * E);
         ctx.scale(plopp, plopp);
 
-        ctx.font = `bold ${4.5 * E}px "Comic Sans MS", sans-serif`;
+        ctx.font = `bold ${2.9 * E}px "Comic Sans MS", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        // Runde weiße "Sprechblase" hinter dem Text:
-        let breite = ctx.measureText(m.text).width + 4 * E;
+        // Zarte weiße "Sprechblase" hinter dem Text:
+        let breite = ctx.measureText(m.text).width + 3 * E;
         // Auf schmalen Handys: Text verkleinern, bis er auf den Schirm passt.
         if (breite > breitePx * 0.94) {
             const faktor = (breitePx * 0.94) / breite;
             ctx.scale(faktor, faktor);
             breite = breitePx * 0.94 / faktor;
         }
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
         ctx.beginPath();
-        ctx.roundRect(-breite / 2, -3.5 * E, breite, 7 * E, 3.5 * E);
+        ctx.roundRect(-breite / 2, -2.4 * E, breite, 4.8 * E, 2.4 * E);
         ctx.fill();
         ctx.fillStyle = "#0a4d8c";
-        ctx.fillText(m.text, 0, 0.2 * E);
+        ctx.fillText(m.text, 0, 0.15 * E);
         ctx.restore();
         reihe++;
     }
+}
+
+/* ---------- HINTERGRUND-BLASEN (Parallax-Tiefeneffekt) ----------
+   Dezente Luftblasen schweben in verschiedenen TIEFEN-Ebenen hinter
+   dem Spielfeld – wie die Sterne in einem Weltraumspiel: Ferne Blasen
+   (kleine "tiefe") ziehen langsam vorbei, nahe Blasen sausen schnell
+   mit der Welt nach unten. So entsteht ein echter 3D-Tiefen- und
+   Geschwindigkeits-Eindruck, ganz ohne das Spielfeld zu stören. */
+let hgBlasen = [];
+
+// Eine Blase (neu) auswürfeln. pyE = gewünschte Bildschirm-Höhe in E
+// (0 = oben, 100 = unten) – beim Start überall, später am Rand:
+function hgBlaseSetzen(b, pyE) {
+    const k = KONFIG.hintergrundBlasen;
+    b.tiefe = zufall(k.tiefeMin, k.tiefeMax);
+    b.r = zufall(0.5, 1.6);
+    b.steig = zufall(k.steigMin, k.steigMax);
+    b.x = kameraX * b.tiefe + zufall(-(schirmBreiteE / 2 + 6), schirmBreiteE / 2 + 6);
+    b.h = kameraH() * b.tiefe + (FISCH_SCHIRM_Y - pyE);
+    return b;
+}
+
+function hintergrundBlasenStarten() {
+    hgBlasen = [];
+    for (let i = 0; i < KONFIG.hintergrundBlasen.anzahl; i++) {
+        hgBlasen.push(hgBlaseSetzen({}, zufall(-5, 105)));
+    }
+}
+
+function hintergrundBlasenUpdate(dt) {
+    for (const b of hgBlasen) {
+        b.h += b.steig * dt;   // Blasen steigen von sich aus langsam auf
+        // Aus dem Bild gewandert? Dann auf der anderen Seite frisch neu:
+        const pyE = FISCH_SCHIRM_Y - (b.h - kameraH() * b.tiefe);
+        if (pyE < -6) hgBlaseSetzen(b, 104 + zufall(0, 8));        // oben raus → unten neu
+        else if (pyE > 112) hgBlaseSetzen(b, -4 - zufall(0, 8));   // unten raus → oben neu
+    }
+}
+
+function hintergrundBlasenZeichnen() {
+    for (const b of hgBlasen) {
+        // Parallax: Position mit der Tiefen-Ebene der Blase verschieben –
+        // ferne Blasen bewegen sich kaum, nahe fast wie die Welt selbst:
+        const px = breitePx / 2 + (b.x - kameraX * b.tiefe) * E;
+        const py = (FISCH_SCHIRM_Y - (b.h - kameraH() * b.tiefe)) * E;
+        if (px < -10 || px > breitePx + 10) continue;
+        const radius = b.r * (0.35 + b.tiefe * 0.9) * E;
+        ctx.globalAlpha = 0.06 + b.tiefe * 0.13;   // Nahe Blasen etwas kräftiger
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 0.5 + b.tiefe * 1.1;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
 }
 
 // Eine aufsteigende Luftblase erzeugen. Der Deckel (max. 120 Blasen &
@@ -1769,6 +1971,7 @@ function weltStarten() {
     spieler.schonzeit = 1;   // 1 Sekunde Schonfrist beim Start
     festTimer = 0;
     festMerkH = 0;
+    kameraX = 0;             // Die Kamera schaut wieder geradeaus
 
     hindernisse = [];
     garnelen = [];
@@ -1779,6 +1982,7 @@ function weltStarten() {
     angreifer = null;
     hoehle = null;
     hoehlenEintritt = null;
+    hintergrundBlasenStarten();   // Frische Parallax-Blasen für die neue Welt
 
     spielZeit = 0;
     sprungZeit = 0;
@@ -1900,15 +2104,127 @@ el("start-knopf").addEventListener("click", () => {
     spielStarten();
 });
 
+// Das Einstellungs-Menü kann von ZWEI Orten geöffnet werden:
+// vom Startbildschirm (Zahnrad unten) und mitten im Spiel (Zahnrad
+// neben der Pause-Taste). "Fertig" bringt einen genau dahin zurück:
+let einstellungenVon = "start";
+
+function einstellungenOeffnen(von) {
+    einstellungenVon = von;
+    zeige("einstellungen-schirm");
+    weltenListeFuellen();
+    installAnzeigen();
+}
+
 el("einstellungen-knopf").addEventListener("click", () => {
     tonAnschalten(); SOUND.knopf();
-    zeige("einstellungen-schirm");
+    einstellungenOeffnen("start");
+});
+
+// Das Zahnrad im HUD: pausiert das Spiel und öffnet die Einstellungen.
+el("hud-einstellungen-knopf").addEventListener("click", () => {
+    if (zustand !== "laeuft") return;
+    tonAnschalten(); SOUND.knopf();
+    zustand = "pause";
+    einstellungenOeffnen("spiel");
 });
 
 el("einstellungen-zurueck").addEventListener("click", () => {
     SOUND.knopf();
-    zeige("start-schirm");
+    if (einstellungenVon === "spiel") {
+        zustand = "laeuft";   // Zurück ins Spiel – weiter geht's!
+        zeige(null);
+    } else {
+        zeige("start-schirm");
+    }
 });
+
+/* ---------- Die Weltenliste im Einstellungs-Menü ----------
+   Zeigt alle Welten der Reise untereinander: Geschaffte Welten
+   bekommen einen Stern, die aktuelle Welt ist markiert ("hier"),
+   und alles darunter macht neugierig auf das, was noch kommt. */
+function weltenListeFuellen() {
+    const liste = el("welten-liste");
+    liste.textContent = "";
+    WELTEN.forEach((welt, i) => {
+        const zeile = document.createElement("div");
+        zeile.className = "welt-eintrag";
+        const geschafft = runde > 0 || i < weltIndex;
+        if (i === weltIndex) zeile.classList.add("aktiv");
+        else if (geschafft) zeile.classList.add("geschafft");
+
+        const nummer = document.createElement("span");
+        nummer.className = "welt-nummer";
+        nummer.textContent = (i + 1) + ".";
+        const emoji = document.createElement("span");
+        emoji.textContent = welt.emoji;
+        const name = document.createElement("span");
+        name.className = "welt-name";
+        name.textContent = welt.name;
+        zeile.append(nummer, emoji, name);
+
+        if (i === weltIndex) {
+            const marke = document.createElement("span");
+            marke.textContent = "📍 hier";
+            zeile.appendChild(marke);
+        } else if (geschafft) {
+            const stern = document.createElement("span");
+            stern.textContent = "⭐";
+            zeile.appendChild(stern);
+        }
+        liste.appendChild(zeile);
+    });
+    // Die Liste springt direkt zur aktuellen Welt:
+    const aktiv = liste.querySelector(".aktiv");
+    if (aktiv) aktiv.scrollIntoView({ block: "center" });
+}
+
+/* ---------- PWA: "Als App installieren" ----------
+   Chrome & Co. melden mit "beforeinstallprompt", dass das Spiel
+   installierbar ist – dann zeigen wir den Knopf im Einstellungs-Menü.
+   iPhone/iPad kennen dieses Ereignis nicht: Dort erscheint stattdessen
+   eine kleine Anleitung (Teilen → "Zum Home-Bildschirm"). Läuft das
+   Spiel bereits als installierte App, bleibt beides versteckt. */
+let installEreignis = null;
+
+window.addEventListener("beforeinstallprompt", (ereignis) => {
+    ereignis.preventDefault();       // Browser-Banner unterdrücken – WIR fragen im Menü
+    installEreignis = ereignis;
+    installAnzeigen();
+});
+
+window.addEventListener("appinstalled", () => {
+    installEreignis = null;
+    installAnzeigen();
+});
+
+function laeuftAlsApp() {
+    return window.matchMedia("(display-mode: standalone)").matches
+        || window.navigator.standalone === true;
+}
+
+function installAnzeigen() {
+    const istIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    el("install-zeile").classList.toggle("versteckt", !installEreignis || laeuftAlsApp());
+    el("install-hinweis").classList.toggle("versteckt", !istIOS || laeuftAlsApp());
+}
+
+el("install-knopf").addEventListener("click", () => {
+    if (!installEreignis) return;
+    SOUND.knopf();
+    installEreignis.prompt();        // Der Browser zeigt seinen Installieren-Dialog
+    installEreignis.userChoice.then(() => {
+        installEreignis = null;
+        installAnzeigen();
+    });
+});
+
+// Der Service Worker macht das Spiel offline spielbar (siehe sw.js):
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => { /* offline-Extra, kein Muss */ });
+    });
+}
 
 el("ton-knopf").addEventListener("click", () => {
     einstellungen.ton = !einstellungen.ton;
@@ -1980,14 +2296,20 @@ function hauptSchleife(zeitstempel) {
         spielZeit += dt;
         weltWeiterbauen();          // Level-Generator: Strecke über dem Fisch bauen
         spielerBewegen(dt);         // Fisch aufsteigen lassen & lenken
+        kameraGleiten(dt);          // Die Kamera driftet weich zur Seite mit
         kollisionenPruefen(dt);     // Garnelen, Hindernisse, Abzweigungen
         hoehleUpdate(dt);           // Höhlen-Anfang und -Ende verwalten
         angreiferUpdate(dt);        // Hai-KI
         partikelUpdate(dt);         // Blasen, Funkeln, Meldungen, Tiere
         hudAktualisieren();         // Fortschrittsbalken oben
     } else if (zustand === "sprung") {
+        kameraGleiten(dt);          // Kamera gleitet sanft zur Sprung-Stelle
         sprungUpdate(dt);           // Die Ziel-Sprung-Animation
     }
+
+    // Die Parallax-Blasen blubbern IMMER weiter – auch auf dem Start-
+    // und Pause-Bildschirm wirkt das Wasser so schön lebendig:
+    hintergrundBlasenUpdate(dt);
 
     // Gezeichnet wird immer – so sieht man das Spielfeld auch in der Pause:
     allesZeichnen(zeitstempel);
@@ -1998,4 +2320,5 @@ function hauptSchleife(zeitstempel) {
 /* ---------- LOS GEHT'S! ---------- */
 einstellungenLaden();
 einstellungenAnzeigen();
+hintergrundBlasenStarten();   // Schon der Startbildschirm blubbert gemütlich
 requestAnimationFrame(hauptSchleife);

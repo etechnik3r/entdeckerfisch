@@ -164,5 +164,26 @@ const KONFIG = {
         maxBreite: 60,         // Breiter als so viele E wird das Spielfeld nie
                                // (sonst wäre es auf großen Bildschirmen zu weitläufig)
         randAbstand: 1.5,      // So nah (in E) darf der Fisch an den Rand heran
+
+        // DIE WELT IST BREITER ALS DER BILDSCHIRM! Die echte Spielfläche
+        // ragt links und rechts über den Bildschirmrand hinaus. Schwimmt
+        // der Fisch zur Seite, GLEITET die ganze Welt sanft mit hinüber –
+        // das gibt richtig Weite und Tiefe:
+        ueberBreite: 1.12,     // Spielfeld = Bildschirmbreite × 1.12 (12 % mehr Welt)
+        kameraWeichheit: 3,    // Wie weich die Kamera zur Seite gleitet (größer = direkter)
+    },
+
+    /* ------------------------------------------------------------
+       HINTERGRUND-BLASEN (Parallax-Tiefeneffekt)
+       ------------------------------------------------------------
+       Dezente Luftblasen in verschiedenen Tiefen-Ebenen. Nahe Blasen
+       ziehen schnell vorbei, ferne nur langsam – wie die Sterne in
+       einem Weltraumspiel. So spürt man Tiefe UND Geschwindigkeit! */
+    hintergrundBlasen: {
+        anzahl: 26,            // So viele Blasen schweben gleichzeitig im Hintergrund
+        tiefeMin: 0.25,        // 0.25 = ganz weit hinten (zieht kaum mit) …
+        tiefeMax: 0.9,         // … 0.9 = fast vorne (zieht fast so schnell wie die Welt)
+        steigMin: 1.5,         // Eigenes Aufstiegs-Tempo der Blasen (E pro Sekunde) …
+        steigMax: 4,           // … zufällig zwischen diesen Werten
     },
 };

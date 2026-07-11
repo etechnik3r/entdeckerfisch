@@ -242,3 +242,73 @@ h2 {
     background: white;
     font-weight: bold;
 }
+
+/* Das Einstellungs-Menü kann durch die Weltenliste lang werden –
+   deshalb darf man darin scrollen (nur hier, nicht im Spiel!): */
+.einstellungen-inhalt {
+    max-height: 92vh;
+    max-height: 92dvh;
+    overflow-y: auto;
+    touch-action: pan-y;           /* Wischen zum Scrollen ausdrücklich erlauben */
+    overscroll-behavior: contain;
+}
+
+/* ---------- PWA: "Als App installieren" ---------- */
+.install-knopf {
+    background: linear-gradient(180deg, #ffd75e, #ff9f43);
+    color: #5a3600;
+    font-weight: bold;
+    border: none;
+}
+.install-hinweis {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+/* ---------- Die Weltenliste: Wo bin ich, was kommt noch? ---------- */
+.welten-titel {
+    margin: 18px 0 8px 0;
+    font-size: 20px;
+    font-weight: bold;
+}
+#welten-liste {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 8px;
+    max-height: 34vh;
+    overflow-y: auto;              /* Bei 44 Welten darf gescrollt werden */
+    touch-action: pan-y;
+    text-align: left;
+}
+.welt-eintrag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 16px;
+    opacity: 0.85;
+}
+.welt-eintrag .welt-nummer {
+    opacity: 0.6;
+    font-size: 13px;
+    min-width: 22px;
+    text-align: right;
+}
+.welt-eintrag.aktiv {
+    background: linear-gradient(90deg, rgba(255, 215, 94, 0.35), rgba(255, 159, 67, 0.25));
+    border: 2px solid #ffd75e;
+    font-weight: bold;
+    opacity: 1;
+}
+.welt-eintrag.geschafft {
+    opacity: 0.6;
+}
+.welt-eintrag.geschafft .welt-name {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
