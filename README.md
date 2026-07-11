@@ -38,26 +38,37 @@ python3 -m http.server 8000
   und man darf entscheiden, ob man weiterspielt.
 - **Garnelen 🦐** geben einen kurzen **Geschwindigkeits-Boost**. Nach 8 Garnelen
   **wächst** der Fisch sichtbar.
-- **Wasserpflanzen 🌿** sind weich und **fest verwurzelt**: Jede Pflanze steht
-  auf einem kleinen Sand-Sockel mit Steinchen und wiegt sich um ihren Fuß in
-  der Strömung. Im Pflanzen-Dickicht schwimmt man **spürbar langsamer** –
-  wehtun tut es aber nie. Felsen stoppen den Fisch sanft.
-- **Der Hai 🦈** ist eine richtige, große und breite gezeichnete Figur (kein
-  Mini-Emoji!) und **nähert sich langsam von hinten** – man spürt richtig, wie
-  er näherkommt. Abhängen durch Boosts oder kluge Wegwahl (der Hai wird in
-  Hindernissen stark gebremst!). Gibt er auf, **dreht er gemächlich ab** –
-  mal taucht er langsam weg, mal *„schwimmt er in den falschen Gang"*.
-  Wird man erwischt, gibt es **kein Game Over** – der Fisch schrumpft nur eine
-  Stufe und bekommt einen Flucht-Boost.
-- **Abzweigungen 🪨**: Felswände teilen den Weg in links / geradeaus / rechts.
-  Der Fisch schwimmt den gewählten Weg entlang – die anderen ziehen unten vorbei.
-- **Höhlen 🕳️**: Einer der Wege kann ein dunkles Höhlen-Loch sein – ein
-  richtiges **Felsentor** mit Steinbogen und dunklem Loch. Schwimmt man hinein,
-  **erschrecken die Hintergrund-Tiere**: Sie flüchten und verschwinden nach und
-  nach – in die Höhle traut sich keiner mit! Drinnen wird es **richtig dunkel**,
-  zackige **Felswände** ragen links und rechts ins Bild, überall liegen Steine –
-  und der **Hai findet einen viel schneller**! Nach ein paar Bildschirmen geht
-  es wieder hinaus ins Helle.
+- **Wasserpflanzen 🌿** sind weich und wachsen **auf Sand und Steinen**: Jede
+  Pflanze sitzt auf einem Steinhaufen im Sand und wiegt sich um ihren Fuß in
+  der Strömung – nichts schwebt einfach im Wasser. Im Pflanzen-Dickicht schwimmt
+  man **spürbar langsamer** – wehtun tut es aber nie. Felsen stoppen den Fisch sanft.
+- **Niemand bleibt hängen 🫧**: Kommt der Fisch mal nicht weiter (z. B. unter
+  einer Felswand), rutscht er automatisch seitlich am Fels entlang – und wenn
+  das nicht reicht, macht er sich kurz **ganz schmal und schlängelt sich** zur
+  nächsten freien Lücke durch. Außerdem zählt für Zusammenstöße immer nur eine
+  kleine Hitbox: Auch ein groß gewachsener Fisch passt durch jede Lücke.
+- **Der Hai 🦈** ist eine richtige, große gezeichnete Figur (kein Mini-Emoji!)
+  und sorgt für **echte Verfolgungsjagden**: Er kommt öfter, holt aus der Ferne
+  richtig auf, **bleibt hartnäckig dran** und reißt kurz vorm Zuschnappen das
+  Maul auf! Solange er dicht hinter einem ist, gibt er nie einfach so auf –
+  abhängen kann man ihn nur mit Garnelen-Boosts oder kluger Wegwahl (in
+  Hindernissen wird er stark gebremst). Wird man erwischt, gibt es **kein Game
+  Over** – der Fisch schrumpft nur eine Stufe und bekommt einen Flucht-Boost.
+- **Abzweigungen 🪨**: Jede Abzweigung ist anders! Mal gibt es einen Gang nach
+  links, geradeaus UND rechts, mal nur links und rechts, mal nur einen einzigen
+  Weg – und manchmal führt einer davon in eine Höhle. Sobald sich der Fisch für
+  einen Gang entschieden hat, **schwimmen die anderen Wege zur Seite davon und
+  verschwinden**.
+- **Höhlen 🕳️**: Einer der Wege kann ein dunkles Höhlen-Loch sein. Schwimmt man
+  hinein, sieht es **wirklich wie Hineinschwimmen** aus: Das dunkle Loch wächst
+  hinter dem Fisch über den ganzen Bildschirm, Blasen wirbeln auf, und es wird
+  zügig finster. Die **Hintergrund-Tiere erschrecken** und flüchten – in die
+  Höhle traut sich keiner mit! Drinnen ragen zackige **Felswände** ins Bild,
+  überall liegen Steine – und der **Hai findet einen viel schneller**! Nach ein
+  paar Bildschirmen geht es wieder hinaus ins Helle.
+- **Lebendige Hintergrund-Tiere 🐬**: Delfine, Robben & Co. schwimmen auf echten
+  **Wellen-Bahnen** auf und ab, neigen sich in ihre Schwimmrichtung, machen mal
+  einen Spurt und kommen gern als kleine **Gruppe** angeschwommen.
 - **44 Welten 🌍**: Vom Korallenriff über die Kiesel-Welt, den Schildkröten-Fluss
   und das Fische-Meer bis zum Zaubermeer – jede Welt hat eigene Farben, eigene
   Hindernisse und eigene **Hintergrund-Tiere**, die harmlos mitschwimmen (in der

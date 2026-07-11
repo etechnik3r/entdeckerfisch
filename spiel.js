@@ -103,7 +103,16 @@ const spieler = {
     garnelenGesamt: 0, // Alle jemals gefressenen Garnelen (für die Anzeige)
     wachstum: 0,       // Aktuelle Wachstums-Stufe (0 bis maxWachstum)
     schwimmPhase: 0,   // Nur für die Optik: lässt den Fisch hin und her wippen
+    schlaengelZeit: 0, // > 0 = der Fisch macht sich "schmal" und schlängelt sich
+                       // durch enge Stellen (Anti-Hänger-Hilfe)
 };
+
+// Der Anti-Hänger-Wächter: merkt sich, ob der Fisch vorankommt.
+let festTimer = 0;     // Sekunden ohne nennenswerten Höhen-Fortschritt
+let festMerkH = 0;     // Bei welcher Höhe zuletzt Fortschritt gemessen wurde
+
+// Für die "Hineinschwimm"-Animation am Höhlen-Eingang:
+let hoehlenEintritt = null;   // { x, h, zeit } oder null
 
 // Der aktuelle Radius des Fisches – wächst mit den Wachstums-Stufen:
 function fischRadius() {
@@ -339,23 +348,34 @@ function weltWeiterbauen() {
     garnelen = garnelen.filter(g => g.h > unten);
     zonen = zonen.filter(z => z.bisH > unten);
 
-    // Ab und zu ein Hintergrund-Tier der Welt dazustellen. Die Tiere
+    // Ab und zu Hintergrund-Tiere der Welt dazustellen. Die Tiere
     // sind völlig harmlos – wenn man über sie schwimmt, passiert NICHTS.
     // In Höhlen schwimmen andere Tiere als draußen!
-    if (Math.random() < 0.01 && tiere.length < 5) {
+    if (Math.random() < 0.02 && tiere.length < 8) {
         const liste = hoehleDunkel() > 0.3 ? HOEHLEN_TIERE : aktuelleWelt().tiere;
         // Tiere starten außerhalb des BILDSCHIRMS (nicht nur des Spielfelds),
         // damit sie auch auf breiten Bildschirmen von außen hereinschwimmen:
         const rand = schirmBreiteE / 2;
         const vonLinks = Math.random() < 0.5;
-        tiere.push({
-            x: vonLinks ? -rand - 8 : rand + 8,
-            h: spieler.h + zufall(20, 85),
-            vx: (vonLinks ? 1 : -1) * zufall(2.5, 6),   // Schwimmt gemütlich quer durchs Bild
-            emoji: zufallAus(liste),
-            groesse: zufall(2.2, 3.8),
-            phase: zufall(0, 6),
-        });
+        const emoji = zufallAus(liste);
+        // Schnelle Schwimmer ziehen große Wellen-Bögen durchs Wasser,
+        // gemütliche Tiere wackeln nur sanft auf und ab:
+        const flink = emoji === "🐬" || emoji === "🦭" || emoji === "🐧";
+        // Delfine & Fische kommen gern als kleine Gruppe angeschwommen:
+        const gruppe = Math.random() < 0.4 ? zufallGanz(2, 3) : 1;
+        for (let i = 0; i < gruppe && tiere.length < 8; i++) {
+            tiere.push({
+                x: (vonLinks ? -rand - 8 : rand + 8) + (vonLinks ? -1 : 1) * i * zufall(5, 9),
+                h: spieler.h + zufall(20, 85) + (i === 0 ? 0 : zufall(-7, 7)),
+                vx: (vonLinks ? 1 : -1) * (flink ? zufall(7, 12) : zufall(2.5, 6)),
+                vh: 0,
+                emoji: emoji,
+                groesse: zufall(2.2, 3.8),
+                phase: zufall(0, 6),
+                wellenHoehe: flink ? zufall(5, 9) : zufall(1, 3),
+                wellenTempo: flink ? zufall(1.2, 2) : zufall(0.6, 1.2),
+            });
+        }
     }
 }
 
@@ -377,10 +397,29 @@ function spielerBewegen(dt) {
     spieler.h += tempo * dt;
 
     // ---- Timer herunterzählen ----
-    spieler.boostZeit    = Math.max(0, spieler.boostZeit - dt);
-    spieler.gebremstZeit = Math.max(0, spieler.gebremstZeit - dt);
-    spieler.pflanzenZeit = Math.max(0, spieler.pflanzenZeit - dt);
-    spieler.schonzeit    = Math.max(0, spieler.schonzeit - dt);
+    spieler.boostZeit      = Math.max(0, spieler.boostZeit - dt);
+    spieler.gebremstZeit   = Math.max(0, spieler.gebremstZeit - dt);
+    spieler.pflanzenZeit   = Math.max(0, spieler.pflanzenZeit - dt);
+    spieler.schonzeit      = Math.max(0, spieler.schonzeit - dt);
+    spieler.schlaengelZeit = Math.max(0, spieler.schlaengelZeit - dt);
+
+    // ---- Der Anti-Hänger-Wächter ----
+    // Kommt der Fisch längere Zeit nicht voran (er hängt z. B. unter
+    // einer Felswand), hilft ihm das Spiel automatisch weiter:
+    if (spieler.h - festMerkH > 3) {
+        festMerkH = spieler.h;
+        festTimer = 0;
+    } else {
+        festTimer += dt;
+        if (festTimer > KONFIG.hilfe.festNach) fischBefreien();
+    }
+
+    // Während der Schlängel-Hilfe hält der Fisch entschlossen auf die
+    // freie Lücke zu – sonst würde er sofort wieder gegen dieselbe
+    // Wand gelenkt und bliebe erneut hängen:
+    if (spieler.schlaengelZeit > 0 && spieler.schlaengelZielX !== undefined) {
+        spieler.zielX = spieler.schlaengelZielX;
+    }
 
     // ---- Nach links/rechts lenken (weich zum Finger-Ziel gleiten) ----
     // Die Formel sorgt für eine sanfte, "schwimmende" Bewegung:
@@ -398,7 +437,8 @@ function spielerBewegen(dt) {
     spieler.zielX = Math.max(-grenze, Math.min(grenze, spieler.zielX));
 
     // ---- Nur Optik: Schwimm-Wippen und Blasen ----
-    spieler.schwimmPhase += dt * (spieler.boostZeit > 0 ? 14 : 7);
+    // (Beim Boosten und beim Durchschlängeln wedelt der Fisch schneller.)
+    spieler.schwimmPhase += dt * (spieler.boostZeit > 0 || spieler.schlaengelZeit > 0 ? 14 : 7);
     if (spieler.boostZeit > 0 && Math.random() < 0.5) {
         blase(spieler.x + zufall(-1, 1), spieler.h - fischRadius());   // Boost-Blasen hinterm Fisch
     } else if (Math.random() < 0.05) {
@@ -408,6 +448,57 @@ function spielerBewegen(dt) {
     // ---- DIE WASSEROBERFLÄCHE ERREICHT? Dann: SPRUNG! ----
     if (spieler.h >= KONFIG.level.streckeProWelt) {
         sprungStarten();
+    }
+}
+
+/* ---------- ANTI-HÄNGER-HILFE ----------
+   Sucht die nächstgelegene freie Lücke zwischen den Felsen direkt
+   über dem Fisch und gibt ihre Mitte zurück. */
+function freieLuecke() {
+    const grenze = spielfeldBreite() / 2 - 2;
+    const rHit = Math.min(fischRadius(), KONFIG.fisch.hitboxMax);
+
+    // Alle Felsen knapp über dem Fisch als "belegte Bereiche" sammeln:
+    const belegt = [];
+    for (const hi of hindernisse) {
+        if (hi.art !== "fels" || hi.weg) continue;
+        if (hi.h <= spieler.h || hi.h > spieler.h + 20) continue;
+        const breit = (hi.r + rHit) * 0.75;
+        belegt.push([hi.x - breit, hi.x + breit]);
+    }
+    belegt.sort((a, b) => a[0] - b[0]);
+
+    // Die freien Lücken dazwischen finden:
+    const luecken = [];
+    let cursor = -grenze;
+    for (const [von, bis] of belegt) {
+        if (von > cursor + 1.5) luecken.push([cursor, Math.min(von, grenze)]);
+        cursor = Math.max(cursor, bis);
+    }
+    if (cursor < grenze - 1.5) luecken.push([cursor, grenze]);
+    if (luecken.length === 0) return spieler.x;   // Alles zu? Dann hilft nur Schlängeln.
+
+    // Die dem Fisch nächstgelegene Lücke auswählen:
+    let besteMitte = spieler.x, besterAbstand = Infinity;
+    for (const [von, bis] of luecken) {
+        const mitte = (von + bis) / 2;
+        const abstand = Math.abs(mitte - spieler.x);
+        if (abstand < besterAbstand) { besterAbstand = abstand; besteMitte = mitte; }
+    }
+    return besteMitte;
+}
+
+// Befreit einen festhängenden Fisch: Er schwimmt zur nächsten freien
+// Lücke und macht sich dabei kurz "ganz schmal" (Schlängel-Modus),
+// um auch durch enge Stellen zu flutschen.
+function fischBefreien() {
+    festTimer = 0;
+    festMerkH = spieler.h;
+    spieler.schlaengelZeit = KONFIG.hilfe.schlaengelDauer;
+    spieler.schlaengelZielX = freieLuecke();
+    spieler.zielX = spieler.schlaengelZielX;
+    for (let i = 0; i < 6; i++) {
+        blase(spieler.x + zufall(-2, 2), spieler.h + zufall(-2, 2));
     }
 }
 
@@ -434,10 +525,17 @@ function abstandZumFisch(x, h) {
 
 function kollisionenPruefen(dt) {
     const r = fischRadius();
+    // Für Hindernisse zählt höchstens hitboxMax – auch ein groß
+    // gewachsener Fisch passt so noch durch jede Lücke:
+    const rHit = Math.min(r, KONFIG.fisch.hitboxMax);
+    // Im Schlängel-Modus (Anti-Hänger-Hilfe) macht sich der Fisch
+    // noch schmaler, um durch enge Stellen zu flutschen:
+    const hitboxFaktor = spieler.schlaengelZeit > 0 ? 0.5 : 0.75;
 
     // ---------- GARNELEN einsammeln ----------
     for (let i = garnelen.length - 1; i >= 0; i--) {
         const g = garnelen[i];
+        if (g.weg) continue;   // Davonschwimmende Abzweigungs-Garnelen zählen nicht mehr
         // fangHilfe macht den Fang-Radius extra groß (fehlerverzeihend):
         if (abstandZumFisch(g.x, g.h) < r + KONFIG.garnelen.radius + KONFIG.garnelen.fangHilfe) {
             garnelen.splice(i, 1);                    // Garnele verschwindet
@@ -459,11 +557,12 @@ function kollisionenPruefen(dt) {
 
     // ---------- HINDERNISSE (Felsen & Pflanzen) ----------
     for (const hi of hindernisse) {
+        if (hi.weg) continue;   // Davonschwimmende Abzweigungs-Teile sind nur noch Deko
         const dx = spieler.x - hi.x;
         const dh = spieler.h - hi.h;
         const abstand = Math.sqrt(dx * dx + dh * dh);
-        // 0.75 = die Hitbox ist nur 75 % so groß wie das Bild (fehlerverzeihend):
-        const mindestAbstand = (r + hi.r) * 0.75;
+        // Die Hitbox ist kleiner als das Bild (fehlerverzeihend):
+        const mindestAbstand = (rHit + hi.r) * hitboxFaktor;
 
         if (abstand < mindestAbstand) {
             if (hi.art === "pflanze") {
@@ -478,7 +577,16 @@ function kollisionenPruefen(dt) {
                 const nx = abstand > 0.01 ? dx / abstand : 1;
                 const nh = abstand > 0.01 ? dh / abstand : 0;
                 spieler.x += nx * ueberlappung;
-                spieler.h += nh * ueberlappung;
+                // Im Schlängel-Modus drückt der Fels kaum noch nach unten –
+                // so windet sich der Fisch durch die enge Stelle hindurch:
+                spieler.h += nh * ueberlappung * (spieler.schlaengelZeit > 0 ? 0.25 : 1);
+
+                // Drückt der Fels hauptsächlich nach UNTEN (der Fisch hängt
+                // unter einer Wand) und der Finger lenkt gerade nirgendwohin?
+                // Dann seitlich am Fels vorbeirutschen statt hängen zu bleiben:
+                if (nh < -0.5 && Math.abs(spieler.zielX - spieler.x) < 2) {
+                    spieler.zielX = spieler.x + (nx >= 0 ? 5 : -5);
+                }
 
                 // Beim ersten Aufprall: kurz bremsen + "Autsch"-Ton
                 if (spieler.gebremstZeit <= 0) {
@@ -489,20 +597,66 @@ function kollisionenPruefen(dt) {
         }
     }
 
-    // ---------- ABZWEIGUNGEN: Welchen Weg hat der Fisch gewählt? ----------
+    // ---------- ABZWEIGUNGEN: Welchen Weg wählt der Fisch? ----------
     for (const zone of zonen) {
+        // Schon MITTEN in der Abzweigung wird geschaut, in welchen Gang
+        // der Fisch geschwommen ist – die anderen Wege räumen dann sofort
+        // das Feld: Sie schwimmen zur Seite davon und verschwinden!
+        if (zone.gewaehlt < 0 && spieler.h > zone.vonH + 30 && spieler.h < zone.bisH) {
+            const drin = zone.kanaele.find(k => spieler.x >= k.von + 1 && spieler.x <= k.bis - 1);
+            if (drin) {
+                zone.gewaehlt = drin.kanal;
+                andereWegeAusblenden(zone);
+            }
+        }
+
+        // Oben angekommen: die Wahl gilt!
         if (zone.entschieden || spieler.h <= zone.bisH) continue;
         zone.entschieden = true;
-        // In welchem Weg (Kanal) ist der Fisch gerade?
-        const kanal = zone.kanaele.find(k => spieler.x >= k.von && spieler.x < k.bis)
-                    || zone.kanaele[0];
+        let kanal = zone.kanaele.find(k => spieler.x >= k.von && spieler.x < k.bis);
+        if (!kanal) {
+            // Zur Not zählt der nächstgelegene Gang:
+            let bester = Infinity;
+            for (const k of zone.kanaele) {
+                const abstand = Math.abs((k.von + k.bis) / 2 - spieler.x);
+                if (abstand < bester) { bester = abstand; kanal = k; }
+            }
+        }
         if (kanal.art === "hoehle") {
-            hoehleStarten();                          // Ab in die dunkle Höhle!
+            hoehleStarten((kanal.von + kanal.bis) / 2);   // Ab in die dunkle Höhle!
         } else if (kanal.art === "garnelen") {
             meldung("Leckerer Weg! 🦐");
         } else {
             meldung("Gut durchgeschlängelt! 🌿");
         }
+    }
+}
+
+// Der Fisch hat sich für einen Gang entschieden: Alle Teile der ANDEREN
+// Wege dieser Abzweigung schwimmen nach außen davon und verblassen.
+function andereWegeAusblenden(zone) {
+    const gewaehlt = zone.kanaele.find(k => k.kanal === zone.gewaehlt);
+    const mitteG = (gewaehlt.von + gewaehlt.bis) / 2;
+    const wegDamit = (teil) => {
+        teil.weg = true;
+        teil.alpha = 1;
+        // Nach außen davonschwimmen (weg vom gewählten Gang):
+        teil.vx = (teil.x >= mitteG ? 1 : -1) * zufall(15, 28);
+    };
+
+    for (const hi of hindernisse) {
+        if (hi.zonenId !== zone.id || hi.weg) continue;
+        if (hi.kanal === zone.gewaehlt) continue;           // Der eigene Weg bleibt!
+        if (hi.kanal === -1) continue;                      // Gesperrte Spuren sind Kulisse, die bleibt
+        if (hi.kanal === -2 && hi.nachbarn.includes(zone.gewaehlt)) continue;  // Die Wand am eigenen Gang bleibt
+        wegDamit(hi);
+    }
+    for (const g of garnelen) {
+        if (g.zonenId === zone.id && !g.weg && g.kanal !== zone.gewaehlt) wegDamit(g);
+    }
+    // Auch das dunkle Höhlen-Loch eines NICHT gewählten Weges blendet aus:
+    for (const k of zone.kanaele) {
+        if (k.kanal !== zone.gewaehlt) k.weg = true;
     }
 }
 
@@ -516,7 +670,7 @@ function kollisionenPruefen(dt) {
    schwimmt man oben wieder ins helle Wasser hinaus.
    ================================================================ */
 
-function hoehleStarten() {
+function hoehleStarten(eintrittX = spieler.x) {
     // Wie lang wird die Höhle? (Nie länger, als bis zur Zielgeraden Platz ist.)
     const maxEnde = KONFIG.level.streckeProWelt - KONFIG.level.freieZielgerade - 40;
     const laenge = Math.min(zufall(KONFIG.hoehle.minLaenge, KONFIG.hoehle.maxLaenge),
@@ -524,6 +678,14 @@ function hoehleStarten() {
     if (laenge < 60) return;   // Zu nah am Ziel? Dann bleibt es hell.
 
     hoehle = { startH: spieler.h, endeH: spieler.h + laenge };
+
+    // Die "Hineinschwimm"-Animation: Das dunkle Höhlenloch wächst gleich
+    // hinter dem Fisch über den ganzen Bildschirm – als würde er wirklich
+    // in den Felsen hineintauchen. Dazu wirbeln Blasen am Eingang auf:
+    hoehlenEintritt = { x: eintrittX, h: spieler.h - 5, zeit: 0 };
+    for (let i = 0; i < 10; i++) {
+        blase(eintrittX + zufall(-6, 6), spieler.h + zufall(-5, 2));
+    }
 
     // Alles, was oberhalb des Bildschirms schon "normal" gebaut wurde,
     // wegräumen – ab hier wird als Höhle weitergebaut:
@@ -555,12 +717,18 @@ function hoehleStarten() {
 // Am Höhlen-Anfang und -Ende wird sanft ein-/ausgeblendet:
 function hoehleDunkel() {
     if (!hoehle) return 0;
-    const rein = (spieler.h - hoehle.startH) / 14;
-    const raus = (hoehle.endeH - spieler.h) / 14;
+    const rein = (spieler.h - hoehle.startH) / 8;    // Beim Hineinschwimmen wird es ZÜGIG dunkel
+    const raus = (hoehle.endeH - spieler.h) / 14;    // Am Ausgang wird es sanft wieder hell
     return Math.max(0, Math.min(1, rein, raus));
 }
 
-function hoehleUpdate() {
+function hoehleUpdate(dt) {
+    // Die Hineinschwimm-Animation weiterlaufen lassen:
+    if (hoehlenEintritt) {
+        hoehlenEintritt.zeit += dt;
+        if (hoehlenEintritt.zeit > 1.4) hoehlenEintritt = null;
+    }
+
     // Das Ende der Höhle erreicht? Wieder raus ins Helle!
     if (hoehle && spieler.h > hoehle.endeH) {
         hoehle = null;
@@ -635,7 +803,7 @@ function angreiferUpdate(dt) {
 
     // Steckt der Hai in einem Hindernis? Dann stark bremsen!
     for (const hi of hindernisse) {
-        if (hi.art === "pflanze") continue;   // Durch Pflanzen kommt er gut durch
+        if (hi.art === "pflanze" || hi.weg) continue;   // Durch Pflanzen kommt er gut durch
         const dx = a.x - hi.x, dh = a.h - hi.h;
         if (dx * dx + dh * dh < (hi.r + KONFIG.angreifer.radius) ** 2 * 0.6) {
             tempo *= KONFIG.angreifer.bremseInHindernis;
@@ -643,19 +811,37 @@ function angreiferUpdate(dt) {
         }
     }
 
-    // Auf den Fisch zuschwimmen (normalisierte Richtung × Tempo):
-    const dx = spieler.x - a.x;
+    // Beim Jagen schlängelt der Hai leicht hin und her – das sieht
+    // lebendig aus und gibt dem Fisch eine faire Chance auszuweichen:
+    const zielX = spieler.x + Math.sin(a.verfolgZeit * 2.2) * 5;
+    const dx = zielX - a.x;
     const dh = spieler.h - a.h;
     const abstand = Math.sqrt(dx * dx + dh * dh) || 0.01;
+
+    // Ist der Hai noch WEIT weg? Dann holt er RICHTIG auf – er soll ja
+    // wirklich auftauchen und jagen, nicht nur eine Meldung bleiben:
+    if (abstand > KONFIG.angreifer.aufholAb) {
+        const weit = Math.min(1, (abstand - KONFIG.angreifer.aufholAb) / 30);
+        tempo *= 1 + weit * (KONFIG.angreifer.aufholFaktor - 1);
+    }
+    // Und ganz nah dran macht er einen Schnapp-Spurt!
+    if (abstand < KONFIG.angreifer.bissAbstand) {
+        tempo *= KONFIG.angreifer.spurtFaktor;
+    }
+
+    // Auf den Fisch zuschwimmen (normalisierte Richtung × Tempo):
     a.x += (dx / abstand) * tempo * dt;
     a.h += (dh / abstand) * tempo * dt;
     a.bewX = dx / abstand;
     a.bewH = dh / abstand;
 
     // ---- Hat der Fisch den Hai abgehängt? ----
+    // Wichtig: Solange der Hai DICHT dran ist, gibt er NIE einfach so
+    // auf – eine echte Verfolgungsjagd endet erst, wenn man ihn
+    // abschüttelt (oder er zuschnappt)!
     const rueckstand = spieler.h - a.h;
     if (rueckstand > KONFIG.angreifer.fluchtAbstand
-        || a.verfolgZeit > KONFIG.angreifer.maxVerfolgung) {
+        || (a.verfolgZeit > KONFIG.angreifer.maxVerfolgung && abstand > 25)) {
         meldung(zufallAus([
             "Hai abgehängt! 🎉",
             "Der Hai schwimmt in den falschen Gang! 🦈💨",
@@ -667,7 +853,8 @@ function angreiferUpdate(dt) {
     }
 
     // ---- Hat der Hai den Fisch erwischt? ----
-    if (abstand < fischRadius() + KONFIG.angreifer.radius * 0.7 && spieler.schonzeit <= 0) {
+    if (abstandZumFisch(a.x, a.h) < fischRadius() + KONFIG.angreifer.radius * 0.7
+        && spieler.schonzeit <= 0) {
         // Kindgerecht: KEIN Game Over! Der Fisch verliert eine Wachstums-Stufe,
         // ist kurz unverwundbar und bekommt einen Flucht-Boost geschenkt.
         spieler.wachstum = Math.max(0, spieler.wachstum - 1);
@@ -739,34 +926,44 @@ function zeichneEmoji(emoji, x, y, groessePx, spiegeln = false, drehung = 0) {
 function zeichnePflanze(emoji, px, py, groessePx, wackeln, bodenFarbe) {
     const basisY = py + groessePx * 0.85;   // Hier "steht" die Pflanze
 
-    // Der Sand-Hügel, in dem die Pflanze wurzelt:
+    // Zuerst ein kleiner Sandhügel als Untergrund …
     ctx.fillStyle = bodenFarbe;
     ctx.beginPath();
-    ctx.ellipse(px, basisY, groessePx * 1.1, groessePx * 0.32, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Ein paar Steinchen auf dem Hügel (halten die Pflanze fest):
-    ctx.fillStyle = "rgba(95, 88, 80, 0.85)";
-    ctx.beginPath();
-    ctx.arc(px - groessePx * 0.55, basisY - groessePx * 0.02, groessePx * 0.18, 0, Math.PI * 2);
-    ctx.arc(px + groessePx * 0.5, basisY + groessePx * 0.06, groessePx * 0.14, 0, Math.PI * 2);
+    ctx.ellipse(px, basisY + groessePx * 0.12, groessePx * 0.95, groessePx * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Die Pflanze selbst – sie dreht sich um ihren Fußpunkt:
+    // … und darauf ein Haufen dicker, runder Steine, aus dem die
+    // Pflanze herauswächst – so wie Anemonen in echt auf Fels sitzen:
+    const steine = [   // [x-Versatz, y-Versatz, Radius, Farbe]
+        [-0.55,  0.04, 0.32, "#6b625a"],
+        [ 0.52,  0.08, 0.28, "#756c62"],
+        [ 0.05,  0.10, 0.40, "#7d746a"],
+        [-0.18, -0.06, 0.24, "#655c54"],
+    ];
+    for (const [sx, sy, sr, farbe] of steine) {
+        ctx.fillStyle = farbe;
+        ctx.beginPath();
+        ctx.arc(px + sx * groessePx, basisY + sy * groessePx, sr * groessePx, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Die Pflanze selbst – sie dreht sich um ihren Fußpunkt zwischen den Steinen:
     ctx.save();
     ctx.translate(px, basisY);
     ctx.rotate(wackeln);
     ctx.font = `${groessePx * 2}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    ctx.fillText(emoji, 0, groessePx * 0.15);
+    ctx.fillText(emoji, 0, groessePx * 0.1);
     ctx.restore();
 }
 
 /* ---------- DER HAI – eine richtige, selbstgemalte Figur! ----------
    Kein kleines Emoji mehr: Der Hai wird mit Körper, Bauch, Flossen,
    Auge und Maul direkt aufs Canvas gemalt und dreht sich immer in
-   seine Schwimmrichtung. s = seine Größe in Pixeln. */
-function zeichneHai(px, py, s, winkel, phase) {
+   seine Schwimmrichtung. s = seine Größe in Pixeln.
+   schnapp (0–1): Wie weit er das Maul aufreißt, wenn er nah dran ist! */
+function zeichneHai(px, py, s, winkel, phase, schnapp = 0) {
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(winkel);
@@ -824,11 +1021,13 @@ function zeichneHai(px, py, s, winkel, phase) {
     ctx.arc(1.0 * s, -0.25 * s, 0.1 * s, 0, Math.PI * 2);
     ctx.fill();
 
-    // Das Maul (ein freundlich-gefährlicher Bogen):
+    // Das Maul (ein freundlich-gefährlicher Bogen) – kurz vorm
+    // Zuschnappen reißt der Hai es sichtbar weiter auf:
     ctx.strokeStyle = "#3a4a5a";
-    ctx.lineWidth = Math.max(1.5, 0.08 * s);
+    ctx.lineWidth = Math.max(1.5, (0.08 + schnapp * 0.12) * s);
     ctx.beginPath();
-    ctx.arc(0.85 * s, 0.3 * s, 0.55 * s, Math.PI * 0.1, Math.PI * 0.55);
+    ctx.arc(0.85 * s, 0.3 * s, (0.55 + schnapp * 0.3) * s,
+            Math.PI * 0.1, Math.PI * (0.55 + schnapp * 0.2));
     ctx.stroke();
 
     ctx.restore();
@@ -902,9 +1101,13 @@ function allesZeichnen(zeitstempel) {
     for (const t of tiere) {
         // Fliehende Tiere verblassen langsam (alpha sinkt bis 0):
         ctx.globalAlpha = 0.85 * (t.alpha ?? 1);
-        const schwoof = Math.sin(zeitstempel * 0.002 + t.phase) * E * 0.8;
+        // Die Tiere schwimmen echte Wellen-Bahnen (siehe partikelUpdate)
+        // und NEIGEN sich dabei in ihre Schwimmrichtung – wie richtige
+        // Delfine, die durchs Wasser ziehen:
+        const steigung = Math.atan2(-(t.vh || 0), Math.abs(t.vx)) * 0.7;
+        const neigung = t.vx > 0 ? steigung : -steigung;
         // Tiere schauen in ihre Schwimmrichtung (Emojis schauen links):
-        zeichneEmoji(t.emoji, schirmX(t.x), schirmY(t.h) + schwoof, t.groesse * E, t.vx > 0);
+        zeichneEmoji(t.emoji, schirmX(t.x), schirmY(t.h), t.groesse * E, t.vx > 0, neigung);
     }
     ctx.globalAlpha = 1;
 
@@ -915,6 +1118,10 @@ function allesZeichnen(zeitstempel) {
     for (const zone of zonen) {
         for (const k of zone.kanaele) {
             if (k.art !== "hoehle") continue;
+            // Ein nicht gewählter Höhlen-Eingang blendet langsam aus:
+            const lochAlpha = k.alpha ?? 1;
+            if (lochAlpha <= 0) continue;
+            ctx.globalAlpha = lochAlpha;
             const mx = schirmX((k.von + k.bis) / 2);
             const my = schirmY(zone.bisH - 12);
             if (my < -20 * E || my > hoehePx + 20 * E) continue;
@@ -946,6 +1153,7 @@ function allesZeichnen(zeitstempel) {
             ctx.fill();
         }
     }
+    ctx.globalAlpha = 1;
 
     // ---------- 5b. Höhlen-Felswände ----------
     // In der Höhle wachsen links und rechts zackige Felswände ins
@@ -973,11 +1181,13 @@ function allesZeichnen(zeitstempel) {
     for (const hi of hindernisse) {
         const hy = schirmY(hi.h);
         if (hy < -15 * E || hy > hoehePx + 15 * E) continue;   // Außerhalb? Nicht malen.
+        // Teile einer nicht gewählten Abzweigung schwimmen davon und verblassen:
+        ctx.globalAlpha = hi.alpha ?? 1;
         // Höhlen-Steine bringen ihr eigenes Emoji mit (🪨), sonst nimmt
         // jede Welt ihre eigenen Bilder:
         const emoji = hi.emoji || welt.emojis[hi.art];
         if (hi.art === "pflanze") {
-            // Pflanzen stehen FEST auf einem kleinen Sand-Sockel und
+            // Pflanzen stehen FEST auf einem kleinen Stein-Sockel und
             // wiegen sich um ihren Fuß in der Strömung:
             const wackeln = Math.sin(zeitstempel * 0.002 + hi.h) * 0.12;
             zeichnePflanze(emoji, schirmX(hi.x), hy, hi.r * E * 1.15, wackeln, welt.farbeBoden);
@@ -985,15 +1195,18 @@ function allesZeichnen(zeitstempel) {
             zeichneEmoji(emoji, schirmX(hi.x), hy, hi.r * E * 1.15);
         }
     }
+    ctx.globalAlpha = 1;
 
     // ---------- 7. Garnelen ----------
     for (const g of garnelen) {
         const gy = schirmY(g.h);
         if (gy < -5 * E || gy > hoehePx + 5 * E) continue;
+        ctx.globalAlpha = g.alpha ?? 1;
         // Garnelen hüpfen leicht hin und her, damit man sie gut sieht:
         const huepfen = Math.sin(zeitstempel * 0.005 + g.h) * E * 0.8;
         zeichneEmoji("🦐", schirmX(g.x) + huepfen, gy, KONFIG.garnelen.radius * E * 1.2);
     }
+    ctx.globalAlpha = 1;
 
     // ---------- 8. DER HAI (als richtige, große Figur!) ----------
     if (angreifer) {
@@ -1006,13 +1219,35 @@ function allesZeichnen(zeitstempel) {
             // Der Hai dreht sich in seine Schwimmrichtung
             // (Bildschirm-y zeigt nach unten, Welt-h nach oben → Minus):
             const winkel = Math.atan2(-a.bewH, a.bewX);
-            zeichneHai(ax, ay, s, winkel, a.phase);
+            // Je näher er dem Fisch kommt, desto weiter reißt er das Maul auf:
+            const schnapp = a.flieht ? 0
+                : Math.max(0, Math.min(1, 1 - (abstandZumFisch(a.x, a.h) - 10) / 15));
+            zeichneHai(ax, ay, s, winkel, a.phase, schnapp);
         } else {
             // Noch unterhalb des Bildschirms? Ein Warnzeichen zeigt,
             // wo er gleich auftauchen wird:
             const puls = 1 + Math.sin(zeitstempel * 0.01) * 0.15;
             zeichneEmoji("⚠️", ax, hoehePx - 4 * E, 2.5 * E * puls);
         }
+    }
+
+    // ---------- 8b. Hineinschwimmen in die Höhle ----------
+    // Direkt nach dem Eintauchen wächst das dunkle Höhlenloch hinter
+    // dem Fisch blitzschnell über den ganzen Bildschirm – so sieht es
+    // aus, als würde man wirklich in den Felsen hineinschwimmen.
+    // (Der Fisch wird DANACH gemalt und bleibt dadurch sichtbar.)
+    if (hoehlenEintritt) {
+        const t = Math.min(1, hoehlenEintritt.zeit / 1.2);
+        const mx = schirmX(hoehlenEintritt.x);
+        const my = schirmY(hoehlenEintritt.h);
+        const radius = Math.max(1, (14 + t * t * 170) * E);
+        const staerke = 0.95 * (1 - t * 0.35);
+        const loch = ctx.createRadialGradient(mx, my, 0, mx, my, radius);
+        loch.addColorStop(0, `rgba(3, 3, 12, ${staerke})`);
+        loch.addColorStop(0.75, `rgba(3, 3, 12, ${staerke * 0.9})`);
+        loch.addColorStop(1, "rgba(3, 3, 12, 0)");
+        ctx.fillStyle = loch;
+        ctx.fillRect(0, 0, breitePx, hoehePx);
     }
 
     // ---------- 9. Der Spieler-Fisch ----------
@@ -1175,11 +1410,18 @@ function partikelUpdate(dt) {
         meldungen[i].leben -= dt;
         if (meldungen[i].leben <= 0) meldungen.splice(i, 1);
     }
-    // Hintergrund-Tiere schwimmen gemütlich quer durchs Bild:
+    // Hintergrund-Tiere schwimmen quer durchs Bild – und zwar auf
+    // WELLEN-Bahnen wie echte Tiere: Delfine ziehen große Bögen auf
+    // und ab, kleine Fische zittern nur leicht. Die Neigung in
+    // Schwimmrichtung übernimmt das Zeichnen (allesZeichnen):
     const rand = schirmBreiteE / 2;
     for (let i = tiere.length - 1; i >= 0; i--) {
         const t = tiere[i];
         t.x += t.vx * dt;
+        t.vh = Math.cos(spielZeit * t.wellenTempo * 2 + t.phase) * t.wellenHoehe;
+        t.h += t.vh * dt;
+        // Ab und zu ein kleiner Spurt – Tiere schwimmen nie ganz gleichmäßig:
+        if (Math.random() < 0.005) t.vx *= zufall(0.85, 1.3);
         // Fliehende Tiere (z. B. vor einer Höhle) werden dabei immer
         // durchsichtiger, bis man sie gar nicht mehr sieht:
         if (t.flieht) {
@@ -1187,6 +1429,29 @@ function partikelUpdate(dt) {
             if (t.alpha <= 0) { tiere.splice(i, 1); continue; }
         }
         if (Math.abs(t.x) > rand + 14) tiere.splice(i, 1);   // Aus dem Bild? Weg damit.
+    }
+
+    // Teile einer NICHT gewählten Abzweigung schwimmen zur Seite
+    // davon und verblassen, bis sie ganz verschwunden sind:
+    for (let i = hindernisse.length - 1; i >= 0; i--) {
+        const hi = hindernisse[i];
+        if (!hi.weg) continue;
+        hi.x += hi.vx * dt;
+        hi.alpha -= dt * 1.3;
+        if (hi.alpha <= 0) hindernisse.splice(i, 1);
+    }
+    for (let i = garnelen.length - 1; i >= 0; i--) {
+        const g = garnelen[i];
+        if (!g.weg) continue;
+        g.x += g.vx * dt;
+        g.alpha -= dt * 1.3;
+        if (g.alpha <= 0) garnelen.splice(i, 1);
+    }
+    // Auch die dunklen Höhlen-Löcher nicht gewählter Wege blenden aus:
+    for (const zone of zonen) {
+        for (const k of zone.kanaele) {
+            if (k.weg) k.alpha = (k.alpha ?? 1) - dt * 1.3;
+        }
     }
 }
 
@@ -1214,7 +1479,10 @@ function weltStarten() {
     spieler.boostZeit = 0;
     spieler.gebremstZeit = 0;
     spieler.pflanzenZeit = 0;
+    spieler.schlaengelZeit = 0;
     spieler.schonzeit = 1;   // 1 Sekunde Schonfrist beim Start
+    festTimer = 0;
+    festMerkH = 0;
 
     hindernisse = [];
     garnelen = [];
@@ -1224,6 +1492,7 @@ function weltStarten() {
     meldungen = [];
     angreifer = null;
     hoehle = null;
+    hoehlenEintritt = null;
 
     spielZeit = 0;
     sprungZeit = 0;
@@ -1259,6 +1528,7 @@ function sprungStarten() {
     spieler.h = KONFIG.level.streckeProWelt;
     angreifer = null;
     hoehle = null;
+    hoehlenEintritt = null;
     SOUND.sprung();
     // Spritzer beim Heraus-Springen aus dem Wasser:
     spritzer(spieler.x, KONFIG.level.streckeProWelt, 14);
@@ -1410,7 +1680,7 @@ function hauptSchleife(zeitstempel) {
         weltWeiterbauen();          // Level-Generator: Strecke über dem Fisch bauen
         spielerBewegen(dt);         // Fisch aufsteigen lassen & lenken
         kollisionenPruefen(dt);     // Garnelen, Hindernisse, Abzweigungen
-        hoehleUpdate();             // Höhlen-Anfang und -Ende verwalten
+        hoehleUpdate(dt);           // Höhlen-Anfang und -Ende verwalten
         angreiferUpdate(dt);        // Hai-KI
         partikelUpdate(dt);         // Blasen, Funkeln, Meldungen, Tiere
         hudAktualisieren();         // Fortschrittsbalken oben

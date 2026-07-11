@@ -585,77 +585,128 @@ const MUSTER = {
 /* ----------------------------------------------------------------
    DIE ABZWEIGUNG
    ----------------------------------------------------------------
-   Felswände teilen das Wasser in 2 oder 3 Wege: links, geradeaus,
-   rechts. Der Fisch muss sich entscheiden und wird dann seinen
-   gewählten Weg entlangschwimmen – die anderen Wege ziehen unten
-   vorbei und verschwinden.
+   Das Spielfeld wird in drei Spuren gedacht: LINKS, GERADEAUS,
+   RECHTS. Bei jeder Abzweigung ist eine andere Kombination davon
+   offen – mal alle drei Gänge, mal nur links und rechts, mal nur
+   geradeaus … so sieht jede Abzweigung anders aus! Gesperrte
+   Spuren sind mit Felsen zugebaut (unten trichterförmig, damit der
+   Fisch sanft in einen offenen Gang geleitet wird).
 
-   Einer der Wege kann ein HÖHLEN-EINGANG sein: Man erkennt ihn an
-   den vielen Steinen und dem dunklen Loch. Wer hineinschwimmt,
-   landet in einer dunklen Höhle (siehe HOEHLEN_MUSTER unten)!
-   Die anderen Wege haben Garnelen oder Pflanzen.
+   Sobald sich der Fisch für einen Gang entschieden hat, schwimmen
+   die ANDEREN Wege zur Seite davon und verschwinden (das macht
+   spiel.js – dafür bekommt hier jedes Teil eine "kanal"-Nummer).
+
+   Einer der Wege kann ein HÖHLEN-EINGANG sein: Man erkennt ihn am
+   dunklen Loch mit dem Steinrand. Wer hineinschwimmt, landet in
+   einer dunklen Höhle (siehe HOEHLEN_MUSTER unten)!
    ---------------------------------------------------------------- */
+let zonenNummer = 0;   // Fortlaufende Nummer, damit spiel.js die Teile einer Abzweigung wiederfindet
+
 function abzweigungBauen(startH) {
-    const laenge = 85;
+    const laenge = 95;
     const breite = spielfeldBreite();
     const rand = breite / 2;
-    // Auf schmalen Handys 2 Wege, auf breiten Bildschirmen auch mal 3:
-    const anzahlWege = breite > 52 ? zufallGanz(2, 3) : 2;
+    const spurBreite = breite / 3;
+    const schmal = breite <= 52;
+
+    // Welche Spuren sind diesmal offen? (0 = links, 1 = geradeaus, 2 = rechts)
+    // Auf schmalen Handys nie alle drei gleichzeitig – das wäre zu eng.
+    const komboListe = schmal
+        ? [[0, 2], [0, 2], [0, 1], [1, 2], [1], [0], [2]]
+        : [[0, 1, 2], [0, 1, 2], [0, 2], [0, 1], [1, 2], [1], [0], [2]];
+    const offen = zufallAus(komboListe);
+
+    const zonenId = ++zonenNummer;
     const hindernisse = [];
     const garnelen = [];
-
-    // Die Trennwände zwischen den Wegen (lange Felsreihen nach oben):
-    for (let i = 1; i < anzahlWege; i++) {
-        const wandX = -rand + (breite * i) / anzahlWege;
-        for (let h = startH + 12; h < startH + laenge - 4; h += 8.5) {
-            hindernisse.push({ x: wandX + zufall(-1.5, 1.5), h: h, r: 5.5, art: "fels" });
-        }
-    }
-
-    // Die Wege beschreiben: Grenzen + was darin wartet.
-    // Ein Weg wird (mit hoehle.chance) zum Höhlen-Eingang:
     const kanaele = [];
-    const hoehlenWeg = Math.random() < KONFIG.hoehle.chance ? zufallGanz(0, anzahlWege - 1) : -1;
-    for (let i = 0; i < anzahlWege; i++) {
-        const von = -rand + (breite * i) / anzahlWege;
-        const bis = -rand + (breite * (i + 1)) / anzahlWege;
+
+    // Einer der offenen Wege wird (mit hoehle.chance) zum Höhlen-Eingang:
+    const hoehlenWeg = Math.random() < KONFIG.hoehle.chance
+        ? offen[zufallGanz(0, offen.length - 1)] : -1;
+
+    for (const spur of offen) {
+        const von = -rand + spur * spurBreite;
+        const bis = von + spurBreite;
         const mitte = (von + bis) / 2;
         let art;
-        if (i === hoehlenWeg) {
+
+        if (spur === hoehlenWeg) {
             art = "hoehle";
-            // Höhlen-Eingang: GANZ VIELE Steine drumherum, wie ein
-            // richtiges Felsentor – so erkennt man ihn sofort.
+            // Der Höhlen-Eingang: kleine Steine säumen den Weg und über
+            // dem dunklen Loch liegt ein Steinbogen – die Lücke in der
+            // Mitte ist bewusst GROSS genug für jeden Fisch!
             // (Die Steine bekommen immer das 🪨-Emoji, egal in welcher Welt.)
-            const halb = (bis - von) / 2;
-            for (let h = startH + 35; h < startH + laenge; h += 8) {
-                hindernisse.push({ x: mitte - halb * 0.62, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
-                hindernisse.push({ x: mitte + halb * 0.62, h: h + zufall(-2, 2), r: 5, art: "fels", emoji: "🪨" });
+            if (spurBreite >= 18) {
+                for (let h = startH + 35; h < startH + laenge - 8; h += 9) {
+                    hindernisse.push({ x: von + 1.5, h: h + zufall(-2, 2), r: 3.5,
+                                       art: "fels", emoji: "🪨", zonenId, kanal: spur });
+                    hindernisse.push({ x: bis - 1.5, h: h + zufall(-2, 2), r: 3.5,
+                                       art: "fels", emoji: "🪨", zonenId, kanal: spur });
+                }
             }
-            // Der Steinbogen ÜBER dem Eingang (mit Lücke in der Mitte,
-            // durch die man hineinschwimmt):
-            for (let dx = -halb * 0.62; dx <= halb * 0.62; dx += 7) {
-                if (Math.abs(dx) < halb * 0.3) continue;   // Der Eingang bleibt frei
-                hindernisse.push({ x: mitte + dx, h: startH + laenge - 4 + zufall(-1.5, 1.5), r: 4.5, art: "fels", emoji: "🪨" });
+            for (let dx = -spurBreite / 2 + 1.5; dx <= spurBreite / 2 - 1.5; dx += 5.5) {
+                if (Math.abs(dx) < 6.5) continue;   // Der Eingang bleibt schön frei
+                hindernisse.push({ x: mitte + dx, h: startH + laenge - 5 + zufall(-1.5, 1.5),
+                                   r: 3.5, art: "fels", emoji: "🪨", zonenId, kanal: spur });
             }
         } else if (Math.random() < 0.6) {
             art = "garnelen";
             // Der Leckerbissen-Weg: eine Garnelen-Spur:
             for (let h = startH + 20; h < startH + laenge - 5; h += 16) {
-                garnelen.push({ x: mitte + zufall(-3, 3), h: h });
+                garnelen.push({ x: mitte + zufall(-3, 3), h: h, zonenId, kanal: spur });
             }
         } else {
             art = "pflanzen";
             // Der Pflanzen-Weg: bremst ein bisschen, tut aber nicht weh:
             for (let h = startH + 22; h < startH + laenge - 8; h += 18) {
-                hindernisse.push({ x: mitte + zufall(-4, 4), h: h, r: 5.5, art: "pflanze" });
+                hindernisse.push({ x: mitte + zufall(-4, 4), h: h, r: 5.5,
+                                   art: "pflanze", zonenId, kanal: spur });
             }
         }
-        kanaele.push({ von, bis, art });
+        kanaele.push({ von, bis, art, kanal: spur });
+    }
+
+    // Trennwände zwischen zwei NEBENEINANDERLIEGENDEN offenen Gängen
+    // (sie gehören zu beiden Nachbarn – deshalb merken sie sich beide):
+    for (let i = 0; i < 2; i++) {
+        if (!offen.includes(i) || !offen.includes(i + 1)) continue;
+        const wandX = -rand + (i + 1) * spurBreite;
+        for (let h = startH + 14; h < startH + laenge - 4; h += 8.5) {
+            hindernisse.push({ x: wandX + zufall(-1.2, 1.2), h: h, r: 4.5,
+                               art: "fels", zonenId, kanal: -2, nachbarn: [i, i + 1] });
+        }
+    }
+
+    // Gesperrte Spuren mit Felsen zubauen. Die unterste Reihe ist wie
+    // ein Dach geformt (in der Mitte hoch, außen tief) – so RUTSCHT der
+    // Fisch von selbst zur Seite in einen offenen Gang, statt hängen
+    // zu bleiben:
+    for (let spur = 0; spur < 3; spur++) {
+        if (offen.includes(spur)) continue;
+        const von = -rand + spur * spurBreite;
+        const bis = von + spurBreite;
+        const mitteSperre = (von + bis) / 2;
+        const halb = spurBreite / 2;
+        for (let x = von + 3; x <= bis - 3; x += 7) {
+            const dach = (1 - Math.abs(x - mitteSperre) / halb) * 12;
+            hindernisse.push({ x: x, h: startH + 14 + dach, r: 5.5,
+                               art: "fels", zonenId, kanal: -1 });
+        }
+        // Darüber wird die Spur locker aufgefüllt, damit niemand
+        // hineinschwimmen kann:
+        for (let h = startH + 38; h < startH + laenge - 6; h += 11) {
+            for (let x = von + 4; x <= bis - 3; x += 9) {
+                hindernisse.push({ x: x + zufall(-1.5, 1.5), h: h + zufall(-2, 2), r: 5,
+                                   art: "fels", zonenId, kanal: -1 });
+            }
+        }
     }
 
     // Die Zone merkt sich, wo die Abzweigung ist – spiel.js prüft dann,
-    // welchen Weg der Fisch gewählt hat, wenn er oben herauskommt:
-    const zone = { vonH: startH, bisH: startH + laenge, kanaele: kanaele, entschieden: false };
+    // welchen Weg der Fisch gewählt hat:
+    const zone = { id: zonenId, vonH: startH, bisH: startH + laenge,
+                   kanaele: kanaele, entschieden: false, gewaehlt: -1 };
     return { laenge, hindernisse, garnelen, zone };
 }
 
@@ -706,7 +757,7 @@ const HOEHLEN_MUSTER = {
         const hindernisse = [];
 
         for (let x = -rand + 3; x <= rand - 3; x += 8) {
-            if (Math.abs(x - lueckeX) < 11) continue;    // Die Lücke freilassen
+            if (Math.abs(x - lueckeX) < 13) continue;    // Die Lücke freilassen
             hindernisse.push({ x: x, h: torH + zufall(-2, 2), r: 5.5, art: "fels", emoji: "🪨" });
         }
         // Garnelen als Wegweiser durch die Lücke:
