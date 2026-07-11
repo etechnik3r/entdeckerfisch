@@ -46,6 +46,38 @@ let hoehePx = 0;       // Bildschirm-Höhe in Pixeln
 let E = 1;             // Umrechnungsfaktor: 1 E = so viele Pixel
 let schirmBreiteE = 0; // Bildschirm-Breite umgerechnet in E
 
+/* ---------- DER SPRITE-CACHE (wichtig für flüssiges Spielen!) ----------
+   Emojis mit fillText() zu malen ist auf Handys TEUER – bei vielen
+   Steinen und Pflanzen fängt das Bild an zu ruckeln. Deshalb wird
+   jedes Emoji nur EINMAL pro Größenstufe auf ein kleines unsichtbares
+   Canvas gemalt und danach immer nur noch als fertiges Bildchen
+   kopiert (drawImage) – das ist um ein Vielfaches schneller. */
+const spriteCache = new Map();
+
+function emojiSprite(emoji, groessePx) {
+    // Größen in Stufen einteilen, damit der Cache klein bleibt.
+    // Die Feinabstimmung übernimmt drawImage beim Kopieren:
+    const stufe = Math.max(4, Math.round(groessePx / 4) * 4);
+    const key = emoji + "@" + stufe;
+    let sprite = spriteCache.get(key);
+    if (!sprite) {
+        if (spriteCache.size > 400) spriteCache.clear();   // Sicherheits-Deckel
+        const dpr = window.devicePixelRatio || 1;
+        const seite = Math.ceil(stufe * 2.6);              // Etwas Rand für breite Emojis
+        const c = document.createElement("canvas");
+        c.width = c.height = Math.ceil(seite * dpr);
+        const cx = c.getContext("2d");
+        cx.scale(dpr, dpr);
+        cx.font = `${stufe * 2}px sans-serif`;
+        cx.textAlign = "center";
+        cx.textBaseline = "middle";
+        cx.fillText(emoji, seite / 2, seite / 2);
+        sprite = { bild: c, seite, stufe };
+        spriteCache.set(key, sprite);
+    }
+    return sprite;
+}
+
 // Wird beim Start und bei jeder Größenänderung (z. B. Handy drehen) aufgerufen:
 function bildschirmAnpassen() {
     // Auf scharfen Displays (Retina) zeichnen wir mit mehr Pixeln:
@@ -60,6 +92,7 @@ function bildschirmAnpassen() {
 
     E = hoehePx / 100;                 // 1 E = 1 % der Bildschirmhöhe (in Pixeln)
     schirmBreiteE = breitePx / E;      // Wie viele E passen nebeneinander auf den Schirm?
+    spriteCache.clear();               // Neue Bildschirmgröße → Sprites neu aufbauen
 }
 window.addEventListener("resize", bildschirmAnpassen);
 bildschirmAnpassen();
@@ -139,6 +172,14 @@ let meldungen = [];    // Text-Einblendungen ("Hai abgehängt!" usw.)
 let naechsterAngreifer = 0;
 let naechsteBauH = 0;          // Bis zu dieser Höhe wurde die Welt schon "gebaut"
 let naechsteAbzweigungH = 0;   // Ab dieser Höhe kommt die nächste Abzweigung
+
+// Die Höhlen-Garantie: JEDE Welt hat mindestens eine Höhle.
+let hoehleBesucht = false;       // Hat der Fisch in dieser Welt schon eine Höhle betreten?
+let hoehlePflichtGebaut = false; // Wurde die "alle Wege führen hinein"-Abzweigung schon gebaut?
+
+// Die Hai-Garantie: Zählt die Angriffe, damit pro Welt MINDESTENS
+// KONFIG.angreifer.minProWelt Haie kommen.
+let haisGesamt = 0;
 
 // Die aktuelle Welt (Farben, Emojis, Tiere) aus welten.js:
 function aktuelleWelt() {
@@ -318,15 +359,24 @@ function weltWeiterbauen() {
         }
 
         let stueck;
+
+        // Die HÖHLEN-GARANTIE: Hat der Fisch bis "pflichtAb" der Strecke
+        // noch keine Höhle betreten, führt die nächste Abzweigung mit
+        // ALLEN offenen Wegen hinein – jede Welt hat so sicher ihre Höhle!
+        const hoehlePflicht = !hoehle && !hoehleBesucht && !hoehlePflichtGebaut
+            && naechsteBauH > strecke * KONFIG.hoehle.pflichtAb
+            && naechsteBauH < strecke - 500;
+
         if (hoehle && naechsteBauH < hoehle.endeH) {
             // In der Höhle: nur steinige Höhlen-Muster!
             const namen = Object.keys(HOEHLEN_MUSTER);
             stueck = HOEHLEN_MUSTER[zufallAus(namen)](naechsteBauH);
-        } else if (!hoehle && naechsteBauH >= naechsteAbzweigungH
-                   && naechsteBauH < strecke - 350) {
+        } else if (!hoehle && naechsteBauH < strecke - 500
+                   && (hoehlePflicht || naechsteBauH >= naechsteAbzweigungH)) {
             // Zeit für eine Abzweigung! (Aber nicht mehr kurz vor dem Ziel,
             // damit eine mögliche Höhle noch genug Platz hat.)
-            stueck = abzweigungBauen(naechsteBauH);
+            stueck = abzweigungBauen(naechsteBauH, hoehlePflicht);
+            if (hoehlePflicht) hoehlePflichtGebaut = true;
             naechsteAbzweigungH = naechsteBauH + stueck.laenge
                                 + KONFIG.level.abzweigungAbstand
                                 + zufall(0, KONFIG.level.abzweigungZufall);
@@ -335,6 +385,16 @@ function weltWeiterbauen() {
             const musterName = waehleMuster(aktuelleWelt());
             stueck = MUSTER[musterName](naechsteBauH);
         }
+
+        // DURCHKOMM-GARANTIE: In jedem Streckenabschnitt bleibt immer eine
+        // ausreichend breite Lücke frei – Steine können weder eine Höhle
+        // zubauen noch einen Gang so eng machen, dass der große Fisch
+        // stecken bleibt. (Abzweigungen sind von Hand sicher gebaut.)
+        if (!stueck.zone) durchkommenSichern(stueck.hindernisse);
+
+        // Jedes Hindernis bekommt sein Bild samt kleiner Zufalls-Deko
+        // (Varianten-Emoji, Spiegelung, leichte Drehung, Größen-Streuung):
+        hindernisseSchmuecken(stueck.hindernisse);
 
         hindernisse.push(...stueck.hindernisse);
         garnelen.push(...stueck.garnelen);
@@ -375,6 +435,97 @@ function weltWeiterbauen() {
                 wellenHoehe: flink ? zufall(5, 9) : zufall(1, 3),
                 wellenTempo: flink ? zufall(1.2, 2) : zufall(0.6, 1.2),
             });
+        }
+    }
+}
+
+
+/* ----------------------------------------------------------------
+   DIE DURCHKOMM-GARANTIE
+   ----------------------------------------------------------------
+   Prüft ein frisch gebautes Streckenstück Band für Band (alle 5 E):
+   Bleibt zwischen den Felsen überall eine freie Lücke von mindestens
+   KONFIG.level.mindestLuecke E übrig? Wenn nicht, werden so lange
+   die kleinsten Felsen des Bandes entfernt, bis der Weg frei ist.
+   So kann KEIN Zufalls-Muster je eine Höhle oder einen Gang zubauen –
+   und auch der groß gewachsene Fisch klemmt nirgendwo fest.
+   (Pflanzen zählen nicht: Sie sind weich und bremsen nur.)
+   ---------------------------------------------------------------- */
+function durchkommenSichern(hindernisListe) {
+    const rHit = KONFIG.fisch.hitboxMax;          // Größte Hitbox des Fisches
+    const grenze = spielfeldBreite() / 2 - 1.5;   // Spielfeld-Rand
+    const minLuecke = KONFIG.level.mindestLuecke;
+
+    const felsen = hindernisListe.filter(hi => hi.art === "fels");
+    if (felsen.length === 0) return;
+    let minH = Infinity, maxH = -Infinity;
+    for (const f of felsen) {
+        minH = Math.min(minH, f.h);
+        maxH = Math.max(maxH, f.h);
+    }
+
+    const entfernen = new Set();
+    for (let bandH = minH; bandH <= maxH; bandH += 5) {
+        // Sicherheits-Schleife: pro Band höchstens so viele Steine
+        // entfernen, wie es überhaupt gibt.
+        for (let runde = 0; runde < felsen.length; runde++) {
+            // Alle Felsen sammeln, die in dieses Höhen-Band hineinragen.
+            // "reichweite" = wie weit der Fels die Fisch-MITTE blockiert
+            // (Fels-Radius + Fisch-Hitbox, mal dem Hitbox-Faktor 0.75):
+            const belegt = [];
+            for (const f of felsen) {
+                if (entfernen.has(f)) continue;
+                const reichweite = (f.r + rHit) * 0.75;
+                if (Math.abs(f.h - bandH) > reichweite) continue;
+                belegt.push([f.x - reichweite, f.x + reichweite, f]);
+            }
+            if (belegt.length === 0) break;
+            belegt.sort((a, b) => a[0] - b[0]);
+
+            // Die größte freie Lücke in diesem Band ausmessen:
+            let groessteLuecke = 0, cursor = -grenze;
+            for (const [von, bis] of belegt) {
+                groessteLuecke = Math.max(groessteLuecke, Math.min(von, grenze) - cursor);
+                cursor = Math.max(cursor, bis);
+            }
+            groessteLuecke = Math.max(groessteLuecke, grenze - cursor);
+            if (groessteLuecke >= minLuecke) break;   // Alles gut – nächstes Band!
+
+            // Zu eng! Den KLEINSTEN Fels des Bandes herausnehmen (so
+            // bleibt möglichst viel von der gebauten Kulisse stehen):
+            let kleinster = null;
+            for (const [, , f] of belegt) {
+                if (!kleinster || f.r < kleinster.r) kleinster = f;
+            }
+            entfernen.add(kleinster);
+        }
+    }
+
+    if (entfernen.size > 0) {
+        for (let i = hindernisListe.length - 1; i >= 0; i--) {
+            if (entfernen.has(hindernisListe[i])) hindernisListe.splice(i, 1);
+        }
+    }
+}
+
+/* ----------------------------------------------------------------
+   HINDERNIS-DEKO – jede Welt sieht lebendiger aus!
+   ----------------------------------------------------------------
+   Jedes Hindernis bekommt beim Bauen einmalig sein Aussehen:
+   - ein Varianten-Emoji der Welt (verschiedene Steine & Pflanzen,
+     siehe EMOJI_VARIANTEN in welten.js),
+   - Felsen werden zufällig gespiegelt, leicht gedreht und in der
+     Größe gestreut – kein Stein gleicht dem anderen.
+   (Nur Optik! Die Hitbox bleibt unverändert fair.)
+   ---------------------------------------------------------------- */
+function hindernisseSchmuecken(hindernisListe) {
+    const welt = aktuelleWelt();
+    for (const hi of hindernisListe) {
+        if (!hi.emoji) hi.emoji = hindernisEmoji(welt, hi.art);
+        if (hi.art === "fels") {
+            hi.flip = Math.random() < 0.5;
+            hi.dreh = zufall(-0.3, 0.3);
+            hi.deko = zufall(0.92, 1.18);   // Größen-Streuung – nur fürs Bild!
         }
     }
 }
@@ -599,6 +750,18 @@ function kollisionenPruefen(dt) {
 
     // ---------- ABZWEIGUNGEN: Welchen Weg wählt der Fisch? ----------
     for (const zone of zonen) {
+        // Kommt eine Abzweigung in Sicht, wird die ENTSCHEIDUNG angekündigt:
+        // Eine Meldung ploppt auf und über den Gängen schweben Wegweiser
+        // (zeichnet abzweigungWegweiser) – so weiß man im fließenden Spiel
+        // rechtzeitig: Gleich muss ich mich entscheiden – links, Mitte, rechts?
+        if (!zone.hinweisGezeigt && zone.gewaehlt < 0
+            && spieler.h < zone.vonH && zone.vonH - spieler.h < 55) {
+            zone.hinweisGezeigt = true;
+            const alleHoehle = zone.kanaele.every(k => k.art === "hoehle");
+            meldung(alleHoehle ? "Alle Wege führen in die Höhle! 🕳️"
+                               : "Wähle deinen Weg! 🤔");
+        }
+
         // Schon MITTEN in der Abzweigung wird geschaut, in welchen Gang
         // der Fisch geschwommen ist – die anderen Wege räumen dann sofort
         // das Feld: Sie schwimmen zur Seite davon und verschwinden!
@@ -678,6 +841,7 @@ function hoehleStarten(eintrittX = spieler.x) {
     if (laenge < 60) return;   // Zu nah am Ziel? Dann bleibt es hell.
 
     hoehle = { startH: spieler.h, endeH: spieler.h + laenge };
+    hoehleBesucht = true;   // Die Höhlen-Garantie dieser Welt ist erfüllt!
 
     // Die "Hineinschwimm"-Animation: Das dunkle Höhlenloch wächst gleich
     // hinter dem Fisch über den ganzen Bildschirm – als würde er wirklich
@@ -761,16 +925,25 @@ function haiGibtAuf(a) {
 
 function angreiferUpdate(dt) {
     // ---- Neuen Hai spawnen, wenn es Zeit ist (aber nicht kurz vorm Ziel) ----
-    if (!angreifer && spielZeit > naechsterAngreifer
+    // Die HAI-GARANTIE: Sind bis zur Level-Mitte noch keine
+    // KONFIG.angreifer.minProWelt Haie gekommen, wird sofort nachgelegt –
+    // jede Welt bekommt ihre Verfolgungsjagden!
+    const haiFehlt = haisGesamt < KONFIG.angreifer.minProWelt
+        && spieler.h > KONFIG.level.streckeProWelt * 0.45
+        && spielZeit > KONFIG.angreifer.erstesSpawnAb;
+    if (!angreifer && (spielZeit > naechsterAngreifer || haiFehlt)
         && spieler.h < KONFIG.level.streckeProWelt - 150) {
         angreifer = {
             x: spieler.x + zufall(-10, 10),
             h: spieler.h - KONFIG.angreifer.startAbstand,   // Startet weit unterhalb des Bildschirms
             verfolgZeit: 0,         // Wie lange er schon jagt
+            nahZeit: 0,             // Wie lange er schon DICHT dran ist (sichtbar!)
+            warNah: false,          // Hat er den Fisch überhaupt schon erreicht?
             flieht: false,          // true = er hat aufgegeben und zieht ab
             phase: 0,               // Nur für die Optik (Schwanzflossen-Wedeln)
             bewX: 0, bewH: 1,       // Seine Schwimmrichtung (fürs Zeichnen)
         };
+        haisGesamt++;
         meldung("Achtung, ein Hai nähert sich von hinten! 🦈");
         SOUND.angreifer();
     }
@@ -835,19 +1008,39 @@ function angreiferUpdate(dt) {
     a.bewX = dx / abstand;
     a.bewH = dh / abstand;
 
+    // ---- Merken: Ist der Hai schon richtig nah dran gewesen? ----
+    // Erst wenn er den Fisch WIRKLICH erreicht hat (man sieht ihn also
+    // direkt hinter sich!) und dort eine Weile gejagt hat, kann man ihn
+    // überhaupt abhängen. Vorher bleibt er hartnäckig auf der Spur –
+    // ein "Hai abgehängt!" ohne je einen Hai gesehen zu haben, gibt es
+    // damit nicht mehr.
+    if (abstand < KONFIG.angreifer.nahAbstand) {
+        a.warNah = true;
+        a.nahZeit += dt;
+    }
+
     // ---- Hat der Fisch den Hai abgehängt? ----
     // Wichtig: Solange der Hai DICHT dran ist, gibt er NIE einfach so
-    // auf – eine echte Verfolgungsjagd endet erst, wenn man ihn
-    // abschüttelt (oder er zuschnappt)!
+    // auf – eine echte Verfolgungsjagd endet erst, wenn man ihn nach
+    // einer richtigen Jagd abschüttelt (oder er zuschnappt)!
     const rueckstand = spieler.h - a.h;
-    if (rueckstand > KONFIG.angreifer.fluchtAbstand
-        || (a.verfolgZeit > KONFIG.angreifer.maxVerfolgung && abstand > 25)) {
+    const jagdWarEcht = a.warNah && a.nahZeit >= KONFIG.angreifer.minNahZeit;
+    if (jagdWarEcht
+        && (rueckstand > KONFIG.angreifer.fluchtAbstand
+            || (a.verfolgZeit > KONFIG.angreifer.maxVerfolgung && abstand > 25))) {
         meldung(zufallAus([
             "Hai abgehängt! 🎉",
             "Der Hai schwimmt in den falschen Gang! 🦈💨",
             "Der Hai gibt auf und zieht davon! 🎉",
         ]));
         SOUND.abgehaengt();
+        haiGibtAuf(a);
+        return;
+    }
+    // Sicherheitsnetz: Findet der Hai ewig nicht zum Fisch (z. B. hinter
+    // Felsen verkeilt), zieht er irgendwann LEISE ab – ohne Jubel-Meldung,
+    // denn abgehängt hat man ihn ja nicht wirklich:
+    if (!jagdWarEcht && a.verfolgZeit > KONFIG.angreifer.notAufgabe) {
         haiGibtAuf(a);
         return;
     }
@@ -905,17 +1098,24 @@ function mischFarben(farbeA, farbeB, t) {
     return `rgb(${mix(16)}, ${mix(8)}, ${mix(0)})`;
 }
 
-// Malt ein Emoji zentriert an eine Pixel-Position.
+// Malt ein Emoji zentriert an eine Pixel-Position – über den schnellen
+// Sprite-Cache (siehe oben), statt es jedes Mal neu als Text zu rendern.
 // groessePx = ungefährer Radius in Pixeln, spiegeln = umdrehen, drehung in Bogenmaß
 function zeichneEmoji(emoji, x, y, groessePx, spiegeln = false, drehung = 0) {
+    const sprite = emojiSprite(emoji, groessePx);
+    const seite = sprite.seite * (groessePx / sprite.stufe);   // Feinabstimmung der Größe
+
+    // Der häufigste Fall (nicht gespiegelt, nicht gedreht) kommt ganz
+    // ohne teure Transformationen aus:
+    if (!spiegeln && !drehung) {
+        ctx.drawImage(sprite.bild, x - seite / 2, y - seite / 2, seite, seite);
+        return;
+    }
     ctx.save();
     ctx.translate(x, y);
     if (drehung) ctx.rotate(drehung);
     if (spiegeln) ctx.scale(-1, 1);      // Emojis schauen meist nach links → umdrehen
-    ctx.font = `${groessePx * 2}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(emoji, 0, 0);
+    ctx.drawImage(sprite.bild, -seite / 2, -seite / 2, seite, seite);
     ctx.restore();
 }
 
@@ -923,38 +1123,62 @@ function zeichneEmoji(emoji, x, y, groessePx, spiegeln = false, drehung = 0) {
    Jede Pflanze bekommt einen kleinen Sand-Sockel mit Steinchen,
    auf dem sie fest steht. Und sie wiegt sich um ihren FUSS in der
    Strömung – nicht um die Mitte. So schwebt nichts mehr in der Luft! */
+// Der Sockel (Sandhügel + Steinhaufen) wird pro Farbe und Größenstufe nur
+// EINMAL vorgerendert – das spart bei vollen Pflanzenwäldern viele
+// Zeichenbefehle pro Bild (Performance auf dem Handy!):
+function sockelSprite(bodenFarbe, groessePx) {
+    const stufe = Math.max(4, Math.round(groessePx / 4) * 4);
+    const key = "sockel" + bodenFarbe + "@" + stufe;
+    let sprite = spriteCache.get(key);
+    if (!sprite) {
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.ceil(stufe * 2.4), h = Math.ceil(stufe * 1.1);
+        const c = document.createElement("canvas");
+        c.width = Math.ceil(w * dpr); c.height = Math.ceil(h * dpr);
+        const cx = c.getContext("2d");
+        cx.scale(dpr, dpr);
+        const mx = w / 2, my = h * 0.45;   // Bezugspunkt = Fuß der Pflanze
+
+        // Der kleine Sandhügel als Untergrund …
+        cx.fillStyle = bodenFarbe;
+        cx.beginPath();
+        cx.ellipse(mx, my + stufe * 0.12, stufe * 0.95, stufe * 0.26, 0, 0, Math.PI * 2);
+        cx.fill();
+        // … und darauf ein Haufen dicker, runder Steine, aus dem die
+        // Pflanze herauswächst – so wie Anemonen in echt auf Fels sitzen:
+        const steine = [   // [x-Versatz, y-Versatz, Radius, Farbe]
+            [-0.55,  0.04, 0.32, "#6b625a"],
+            [ 0.52,  0.08, 0.28, "#756c62"],
+            [ 0.05,  0.10, 0.40, "#7d746a"],
+            [-0.18, -0.06, 0.24, "#655c54"],
+        ];
+        for (const [sx, sy, sr, farbe] of steine) {
+            cx.fillStyle = farbe;
+            cx.beginPath();
+            cx.arc(mx + sx * stufe, my + sy * stufe, sr * stufe, 0, Math.PI * 2);
+            cx.fill();
+        }
+        sprite = { bild: c, w, h, stufe };
+        spriteCache.set(key, sprite);
+    }
+    return sprite;
+}
+
 function zeichnePflanze(emoji, px, py, groessePx, wackeln, bodenFarbe) {
     const basisY = py + groessePx * 0.85;   // Hier "steht" die Pflanze
 
-    // Zuerst ein kleiner Sandhügel als Untergrund …
-    ctx.fillStyle = bodenFarbe;
-    ctx.beginPath();
-    ctx.ellipse(px, basisY + groessePx * 0.12, groessePx * 0.95, groessePx * 0.26, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Der vorgerenderte Sockel (Sandhügel + Steine) aus dem Cache:
+    const sockel = sockelSprite(bodenFarbe, groessePx);
+    const skala = groessePx / sockel.stufe;
+    ctx.drawImage(sockel.bild, px - sockel.w * skala / 2, basisY - sockel.h * skala * 0.45,
+                  sockel.w * skala, sockel.h * skala);
 
-    // … und darauf ein Haufen dicker, runder Steine, aus dem die
-    // Pflanze herauswächst – so wie Anemonen in echt auf Fels sitzen:
-    const steine = [   // [x-Versatz, y-Versatz, Radius, Farbe]
-        [-0.55,  0.04, 0.32, "#6b625a"],
-        [ 0.52,  0.08, 0.28, "#756c62"],
-        [ 0.05,  0.10, 0.40, "#7d746a"],
-        [-0.18, -0.06, 0.24, "#655c54"],
-    ];
-    for (const [sx, sy, sr, farbe] of steine) {
-        ctx.fillStyle = farbe;
-        ctx.beginPath();
-        ctx.arc(px + sx * groessePx, basisY + sy * groessePx, sr * groessePx, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    // Die Pflanze selbst – sie dreht sich um ihren Fußpunkt zwischen den Steinen:
+    // Die Pflanze selbst – sie dreht sich um ihren Fußpunkt zwischen den
+    // Steinen (das Emoji sitzt dafür mit seiner Unterkante am Drehpunkt):
     ctx.save();
     ctx.translate(px, basisY);
     ctx.rotate(wackeln);
-    ctx.font = `${groessePx * 2}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(emoji, 0, groessePx * 0.1);
+    zeichneEmoji(emoji, 0, -groessePx * 0.9, groessePx);
     ctx.restore();
 }
 
@@ -1192,7 +1416,10 @@ function allesZeichnen(zeitstempel) {
             const wackeln = Math.sin(zeitstempel * 0.002 + hi.h) * 0.12;
             zeichnePflanze(emoji, schirmX(hi.x), hy, hi.r * E * 1.15, wackeln, welt.farbeBoden);
         } else {
-            zeichneEmoji(emoji, schirmX(hi.x), hy, hi.r * E * 1.15);
+            // Felsen mit ihrer persönlichen Deko: gespiegelt, leicht
+            // gedreht und in der Größe gestreut – mehr Varianz im Bild!
+            zeichneEmoji(emoji, schirmX(hi.x), hy, hi.r * E * 1.15 * (hi.deko || 1),
+                         hi.flip || false, hi.dreh || 0);
         }
     }
     ctx.globalAlpha = 1;
@@ -1207,6 +1434,14 @@ function allesZeichnen(zeitstempel) {
         zeichneEmoji("🦐", schirmX(g.x) + huepfen, gy, KONFIG.garnelen.radius * E * 1.2);
     }
     ctx.globalAlpha = 1;
+
+    // ---------- 7b. Wegweiser an Abzweigungen ----------
+    // Solange sich der Fisch noch nicht entschieden hat, schwebt über
+    // jedem offenen Gang ein pulsierender Pfeil mit einem Symbol, das
+    // ehrlich verrät, was dort wartet: 🦐 Garnelen-Weg, 🌿 Pflanzen-Weg,
+    // 🕳️ Höhlen-Eingang. So wird die Entscheidung mitten im fließenden
+    // Spiel sichtbar – und man kann bewusst abbiegen!
+    abzweigungWegweiser(zeitstempel);
 
     // ---------- 8. DER HAI (als richtige, große Figur!) ----------
     if (angreifer) {
@@ -1331,6 +1566,55 @@ function hexAusRgb(rgbText) {
     return "#" + zahlen.map(z => z.toString(16).padStart(2, "0")).join("");
 }
 
+/* ---------- WEGWEISER AN ABZWEIGUNGEN ----------
+   Über jedem offenen Gang einer nahenden Abzweigung schwebt ein
+   sanft auf- und abwippender, pulsierender Pfeil mit dem Symbol
+   des Weges. Die Wegweiser erscheinen, sobald die Abzweigung in
+   Sicht kommt, und verschwinden, sobald der Fisch sich für einen
+   Gang entschieden hat. */
+const WEGWEISER_SYMBOL = { hoehle: "🕳️", garnelen: "🦐", pflanzen: "🌿" };
+
+function abzweigungWegweiser(zeitstempel) {
+    for (const zone of zonen) {
+        if (zone.gewaehlt >= 0 || zone.entschieden) continue;   // Schon entschieden
+        const abstand = zone.vonH - spieler.h;
+        if (abstand > 85 || spieler.h > zone.bisH) continue;    // Noch zu weit weg / vorbei
+
+        // Beim Heranschwimmen sanft einblenden:
+        const alpha = Math.max(0, Math.min(1, (85 - abstand) / 20));
+        const wippen = Math.sin(zeitstempel * 0.004) * 0.8 * E;
+        const puls = 1 + Math.sin(zeitstempel * 0.006) * 0.12;
+
+        for (const k of zone.kanaele) {
+            const mx = schirmX((k.von + k.bis) / 2);
+            const my = schirmY(zone.vonH + 6) + wippen;
+            if (my < -12 * E || my > hoehePx + 12 * E) continue;
+            ctx.globalAlpha = alpha;
+
+            // Der leuchtende Pfeil nach oben (zeigt: hier geht ein Weg lang):
+            ctx.fillStyle = "rgba(255, 245, 160, 0.95)";
+            ctx.strokeStyle = "rgba(90, 70, 10, 0.5)";
+            ctx.lineWidth = 0.3 * E;
+            const b = 2.6 * E * puls;   // Halbe Pfeil-Breite
+            ctx.beginPath();
+            ctx.moveTo(mx, my - 2.4 * E * puls);        // Spitze oben
+            ctx.lineTo(mx + b, my + 1.4 * E * puls);    // rechts unten
+            ctx.lineTo(mx + b * 0.4, my + 0.6 * E * puls);
+            ctx.lineTo(mx + b * 0.4, my + 3.2 * E * puls);
+            ctx.lineTo(mx - b * 0.4, my + 3.2 * E * puls);
+            ctx.lineTo(mx - b * 0.4, my + 0.6 * E * puls);
+            ctx.lineTo(mx - b, my + 1.4 * E * puls);    // links unten
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Darunter das Symbol des Weges (🦐 / 🌿 / 🕳️):
+            zeichneEmoji(WEGWEISER_SYMBOL[k.art] || "⬆️", mx, my + 6 * E, 1.9 * E);
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
 
 /* ================================================================
    12. MELDUNGEN & PARTIKEL
@@ -1375,14 +1659,16 @@ function meldungenZeichnen() {
     }
 }
 
-// Eine aufsteigende Luftblase erzeugen:
+// Eine aufsteigende Luftblase erzeugen. Der Deckel (max. 120 Blasen &
+// Funkel gleichzeitig) hält das Spiel auch auf älteren Handys flüssig:
 function blase(x, h) {
+    if (partikel.length > 120) return;
     partikel.push({ art: "blase", x, h, groesse: zufall(0.3, 0.9), leben: 1, vh: zufall(6, 12) });
 }
 
 // Glitzer-Funkeln (z. B. wenn eine Garnele gefressen wird):
 function funkeln(x, h) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 4 && partikel.length < 140; i++) {
         partikel.push({ art: "funkel", x: x + zufall(-2, 2), h: h + zufall(-2, 2),
                         groesse: zufall(1, 2), leben: 0.8, vh: 2 });
     }
@@ -1500,6 +1786,9 @@ function weltStarten() {
     naechsteBauH = 45;   // Die ersten 45 E sind freies Wasser zum Eingewöhnen
     naechsteAbzweigungH = 150 + zufall(0, 80);
     naechsterAngreifer = KONFIG.angreifer.erstesSpawnAb + zufall(0, KONFIG.angreifer.spawnZufall);
+    hoehleBesucht = false;        // Höhlen-Garantie für die neue Welt zurücksetzen
+    hoehlePflichtGebaut = false;
+    haisGesamt = 0;               // Hai-Zähler für die neue Welt zurücksetzen
 
     const welt = aktuelleWelt();
     meldung(`Welt ${weltIndex + 1 + runde * WELTEN.length}: ${welt.name} ${welt.emoji}`);
@@ -1584,12 +1873,24 @@ function weltGeschafft() {
     zeige("welt-geschafft-schirm");
 }
 
-// Die Anzeigen oben (Garnelen-Zähler + Fortschrittsbalken) aktualisieren:
+// Die Anzeigen oben (Garnelen-Zähler + Fortschrittsbalken) aktualisieren.
+// Das HUD sind DOM-Elemente – die fassen wir nur an, wenn sich wirklich
+// etwas sichtbar geändert hat (spart Layout-Arbeit in jedem Frame):
+let hudLetzteGarnelen = -1;
+let hudLetzterAnteil = -1;
+
 function hudAktualisieren() {
-    el("garnelen-zahl").textContent = spieler.garnelenGesamt;
+    if (spieler.garnelenGesamt !== hudLetzteGarnelen) {
+        hudLetzteGarnelen = spieler.garnelenGesamt;
+        el("garnelen-zahl").textContent = spieler.garnelenGesamt;
+    }
     const anteil = Math.min(100, (spieler.h / KONFIG.level.streckeProWelt) * 100);
-    el("fortschritt-balken").style.width = anteil + "%";
-    el("fortschritt-fisch").style.left = anteil + "%";
+    const gerundet = Math.round(anteil * 5) / 5;   // Nur in 0,2-%-Schritten anfassen
+    if (gerundet !== hudLetzterAnteil) {
+        hudLetzterAnteil = gerundet;
+        el("fortschritt-balken").style.width = gerundet + "%";
+        el("fortschritt-fisch").style.left = gerundet + "%";
+    }
 }
 
 /* ---------- Alle Knöpfe verkabeln ---------- */

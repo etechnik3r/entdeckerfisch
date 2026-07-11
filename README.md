@@ -48,24 +48,33 @@ python3 -m http.server 8000
   nächsten freien Lücke durch. Außerdem zählt für Zusammenstöße immer nur eine
   kleine Hitbox: Auch ein groß gewachsener Fisch passt durch jede Lücke.
 - **Der Hai 🦈** ist eine richtige, große gezeichnete Figur (kein Mini-Emoji!)
-  und sorgt für **echte Verfolgungsjagden**: Er kommt öfter, holt aus der Ferne
-  richtig auf, **bleibt hartnäckig dran** und reißt kurz vorm Zuschnappen das
-  Maul auf! Solange er dicht hinter einem ist, gibt er nie einfach so auf –
-  abhängen kann man ihn nur mit Garnelen-Boosts oder kluger Wegwahl (in
-  Hindernissen wird er stark gebremst). Wird man erwischt, gibt es **kein Game
-  Over** – der Fisch schrumpft nur eine Stufe und bekommt einen Flucht-Boost.
-- **Abzweigungen 🪨**: Jede Abzweigung ist anders! Mal gibt es einen Gang nach
-  links, geradeaus UND rechts, mal nur links und rechts, mal nur einen einzigen
-  Weg – und manchmal führt einer davon in eine Höhle. Sobald sich der Fisch für
-  einen Gang entschieden hat, **schwimmen die anderen Wege zur Seite davon und
+  und sorgt für **echte Verfolgungsjagden**: **Mindestens zwei Haie pro Welt**
+  greifen an. Ein Hai schwimmt immer erst **sichtbar ganz nah heran** und jagt
+  eine Weile dicht hinter dem Fisch – erst danach lässt er sich überhaupt
+  abhängen (nie mehr "Hai abgehängt!", ohne je einen Hai gesehen zu haben!).
+  Abhängen klappt mit Garnelen-Boosts oder kluger Wegwahl (in Hindernissen
+  wird er stark gebremst). Wird man erwischt, gibt es **kein Game Over** –
+  der Fisch schrumpft nur eine Stufe und bekommt einen Flucht-Boost.
+- **Abzweigungen = Entscheidungen 🪧**: An jeder Abzweigung sind **immer
+  mindestens zwei Wege offen** – links, geradeaus, rechts. Kommt sie in Sicht,
+  ploppt „Wähle deinen Weg! 🤔“ auf und über jedem Gang schwebt ein
+  **pulsierender Wegweiser-Pfeil** mit ehrlichem Symbol: 🦐 Garnelen-Weg,
+  🌿 Pflanzen-Weg, 🕳️ Höhlen-Eingang. Sobald sich der Fisch für einen Gang
+  entschieden hat, **schwimmen die anderen Wege zur Seite davon und
   verschwinden**.
-- **Höhlen 🕳️**: Einer der Wege kann ein dunkles Höhlen-Loch sein. Schwimmt man
-  hinein, sieht es **wirklich wie Hineinschwimmen** aus: Das dunkle Loch wächst
-  hinter dem Fisch über den ganzen Bildschirm, Blasen wirbeln auf, und es wird
-  zügig finster. Die **Hintergrund-Tiere erschrecken** und flüchten – in die
-  Höhle traut sich keiner mit! Drinnen ragen zackige **Felswände** ins Bild,
-  überall liegen Steine – und der **Hai findet einen viel schneller**! Nach ein
-  paar Bildschirmen geht es wieder hinaus ins Helle.
+- **Höhlen 🕳️**: **Jede Welt hat garantiert mindestens eine Höhle** – wer bis
+  zur Level-Mitte keine betreten hat, dem führt die nächste Abzweigung mit
+  allen Wegen hinein. Schwimmt man hinein, sieht es **wirklich wie
+  Hineinschwimmen** aus: Das dunkle Loch wächst hinter dem Fisch über den
+  ganzen Bildschirm, Blasen wirbeln auf, und es wird zügig finster. Die
+  Höhlen sind jetzt **richtig lange Abschnitte**, die Hintergrund-Tiere
+  erschrecken und flüchten, drinnen ragen zackige **Felswände** ins Bild –
+  und der **Hai findet einen viel schneller**! Nach einer ganzen Weile geht
+  es wieder hinaus ins Helle.
+- **Nichts ist je zugebaut 🛡️**: Eine **Durchkomm-Garantie** prüft jedes
+  gebaute Streckenstück: Überall bleibt eine ausreichend breite Lücke frei.
+  Steine können weder einen Höhlen-Eingang versperren noch einen Gang so eng
+  machen, dass der groß gewachsene Fisch stecken bleibt.
 - **Lebendige Hintergrund-Tiere 🐬**: Delfine, Robben & Co. schwimmen auf echten
   **Wellen-Bahnen** auf und ab, neigen sich in ihre Schwimmrichtung, machen mal
   einen Spurt und kommen gern als kleine **Gruppe** angeschwommen.
@@ -73,7 +82,15 @@ python3 -m http.server 8000
   und das Fische-Meer bis zum Zaubermeer – jede Welt hat eigene Farben, eigene
   Hindernisse und eigene **Hintergrund-Tiere**, die harmlos mitschwimmen (in der
   Schildkrötenwelt Schildkröten 🐢, in der Tiefsee Tintenfische 🦑 …). Über sie
-  schwimmen ist völlig ungefährlich – sie sind nur schöne Kulisse.
+  schwimmen ist völlig ungefährlich – sie sind nur schöne Kulisse. Jede Welt ist
+  eine **richtige kleine Reise** (doppelt so lang wie früher), und Steine &
+  Pflanzen kommen in **vielen Varianten** daher: mal ein Findling 🗿, eine
+  Amphore 🏺, eine Auster 🦪 oder eine Lotusblüte 🪷 – gespiegelt, leicht
+  gedreht und in der Größe gestreut, kein Stein gleicht dem anderen.
+- **Flüssig auch auf älteren Handys 🚀**: Alle Emojis werden über einen
+  **Sprite-Cache** gezeichnet (einmal rendern, danach nur noch kopieren),
+  Pflanzen-Sockel sind vorgerendert und Partikel gedeckelt – auch bei vollen
+  Pflanzenwäldern ruckelt nichts.
 - **Tiefsee-Welten 🌑**: Welten wie die *Mitternachts-Tiefsee*, der
   *Anglerfisch-Abgrund* oder die *Leucht-Tiefe* sind **dauerhaft duster** – nur
   um den Fisch bleibt ein Lichtkreis, und es schwimmen ganz andere Lebewesen
