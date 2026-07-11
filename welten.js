@@ -420,22 +420,27 @@ const HOEHLEN_TIERE = ["🦑", "🐡", "🐙"];
    ---------------------------------------------------------------- */
 const EMOJI_VARIANTEN = {
     fels: {
-        "🪸": ["🪸", "🪸", "🪨", "🐚"],      // Korallen-Welten: dazwischen Steine & Muscheln
-        "🪨": ["🪨", "🪨", "🪨", "🗿", "🐚"], // Stein-Welten: mal ein Findling, mal eine Muschel
-        "🧊": ["🧊", "🧊", "🧊", "🪨"],       // Eis-Welten: ab und zu ein dunkler Fels im Eis
-        "⚓": ["⚓", "🪨", "🪨", "🛟"],       // Piraten-Bucht: Anker, Steine, alter Rettungsring
-        "🏛️": ["🏛️", "🏛️", "🏺", "🪨"],     // Versunkene Stadt: Säulen, Amphoren, Trümmer
-        "💎": ["💎", "💎", "🔮", "🪨"],       // Glitzer-Welten: Kristalle zwischen Felsen
-        "🪵": ["🪵", "🪵", "🪨", "🪵"],       // Fluss-Welten: Treibholz und runde Kiesel
-        "🐚": ["🐚", "🐚", "🪨", "🦪"],       // Muschel-Welten: Muscheln, Austern, Steine
+        "🪸": ["🪸", "🪸", "🪸", "🪨", "🐚", "🦪", "🗿"],   // Korallen-Welten: Steine, Muscheln, Austern, Findlinge
+        "🪨": ["🪨", "🪨", "🪨", "🗿", "🐚", "🦪", "🪸"],   // Stein-Welten: Findling, Muschel, Auster, Korallen-Tupfer
+        "🧊": ["🧊", "🧊", "🧊", "🪨", "💎", "🗿"],          // Eis-Welten: dunkler Fels, Eiskristall, Findling
+        "⚓": ["⚓", "🪨", "🪨", "🛟", "🏺", "🪵"],          // Piraten-Bucht: Anker, Rettungsring, Amphore, Wrackholz
+        "🏛️": ["🏛️", "🏛️", "🏺", "🪨", "🗿"],              // Versunkene Stadt: Säulen, Amphoren, Statuen, Trümmer
+        "💎": ["💎", "💎", "🔮", "🪨", "🗿", "🧊"],          // Glitzer-Welten: Kristalle, Kugeln, Eis-Funkeln
+        "🪵": ["🪵", "🪵", "🪨", "🪨", "🗿", "🐚"],          // Fluss-Welten: Treibholz, Kiesel, Findling, Muschel
+        "🐚": ["🐚", "🐚", "🪨", "🦪", "🪸", "🗿"],          // Muschel-Welten: Muscheln, Austern, Korallen, Steine
     },
     pflanze: {
-        "🌿": ["🌿", "🌿", "🌱", "☘️"],       // Seegras in mehreren Grüntönen
-        "🪼": ["🪼", "🪼", "🪼", "🌿"],       // Quallen-Wälder mit etwas Seegras
-        "🌺": ["🌺", "🌺", "🌸", "🪷"],       // Blüten-Welten: Hibiskus, Kirschblüte, Lotus
-        "🌱": ["🌱", "🌱", "🌿", "☘️"],       // Junges Grün am Fluss- und Teichboden
+        "🌿": ["🌿", "🌿", "🌱", "☘️", "🍀", "🎋"],          // Seegras in vielen Grüntönen + Bambus-Halme
+        "🪼": ["🪼", "🪼", "🪼", "🌿", "🌱"],                // Quallen-Wälder mit etwas Seegras
+        "🌺": ["🌺", "🌺", "🌸", "🪷", "🌼", "🌷"],          // Blüten-Welten: Hibiskus, Kirschblüte, Lotus, Margerite
+        "🌱": ["🌱", "🌱", "🌿", "☘️", "🍀", "🌾"],          // Junges Grün + Schilf am Fluss- und Teichboden
     },
 };
+
+// GAST-TIERE: Damit nicht immer nur die drei Stamm-Tiere einer Welt
+// vorbeischwimmen, mischt sich ab und zu ein Überraschungs-Gast aus
+// diesem großen Meer-Pool darunter – mehr Leben im Wasser!
+const GAST_TIERE = ["🐠", "🐟", "🐡", "🦐", "🦑", "🐙", "🐬", "🐢", "🦀", "🐳", "🦞", "🐌"];
 
 // Sucht für ein Hindernis das passende Bild aus: das Haupt-Emoji der
 // Welt plus zufällige Varianten aus der Tabelle oben.
