@@ -101,28 +101,51 @@ const KONFIG = {
                                // Deshalb lohnt es sich, durch enge Wege zu flüchten!
         erstesSpawnAb: 8,      // Sekunden Schonfrist am Levelanfang, bevor der erste Hai kommt
         hoehleSpawnAb: 3,      // In HÖHLEN kommt der Hai viel schneller: schon nach so vielen Sekunden!
+
+        // KEIN "Hai abgehängt!" mehr, ohne den Hai je gesehen zu haben:
+        // Der Hai muss erst RICHTIG nah herangeschwommen sein (nahAbstand)
+        // und dort eine Weile gejagt haben (minNahZeit), bevor er sich
+        // überhaupt abhängen lässt. Vorher bleibt er hartnäckig dran!
+        nahAbstand: 26,        // So nah (in E) muss der Hai erst einmal herankommen …
+        minNahZeit: 3.0,       // … und so viele Sekunden nah dranbleiben – erst DANACH
+                               // kann man ihn durch Boosts & kluge Wegwahl abhängen.
+        notAufgabe: 45,        // Sicherheitsnetz: Findet der Hai ewig nicht zum Fisch
+                               // (z. B. hinter Felsen verkeilt), zieht er nach so vielen
+                               // Sekunden LEISE ab – ganz ohne "Abgehängt!"-Meldung.
+        minProWelt: 2,         // MINDESTENS so viele Haie greifen pro Welt an. Hat es
+                               // bis zur Level-Mitte nicht geklappt, kommt sofort einer!
     },
 
     /* ------------------------------------------------------------
        HÖHLEN (erreichbar über Abzweigungen)
        ------------------------------------------------------------ */
     hoehle: {
-        minLaenge: 150,        // Eine Höhle ist mindestens so lang (in E) …
-        maxLaenge: 230,        // … und höchstens so lang
+        minLaenge: 260,        // Eine Höhle ist mindestens so lang (in E) …
+        maxLaenge: 420,        // … und höchstens so lang (schön ausgedehnte Höhlen-Abschnitte!)
         chance: 0.7,           // Wahrscheinlichkeit, dass eine Abzweigung einen Höhlen-Eingang hat (0.7 = 70 %)
         dunkelheit: 0.85,      // Wie dunkel es in der Höhle wird (0 = gar nicht, 1 = stockfinster)
+        pflichtAb: 0.55,       // GARANTIE: Hat der Fisch bis zu diesem Anteil der Strecke
+                               // (0.55 = 55 %) noch keine Höhle betreten, führt die nächste
+                               // Abzweigung ganz sicher hinein – JEDE Welt hat mindestens
+                               // eine Höhle!
     },
 
     /* ------------------------------------------------------------
        LEVEL / WELTEN
        ------------------------------------------------------------ */
     level: {
-        streckeProWelt: 1000,  // So viele E muss der Fisch nach OBEN schwimmen bis zur Wasseroberfläche
+        streckeProWelt: 2000,  // So viele E muss der Fisch nach OBEN schwimmen bis zur
+                               // Wasseroberfläche (doppelt so lang wie früher – jede Welt
+                               // ist jetzt eine richtige kleine Reise!)
         abzweigungAbstand: 200,// Frühestens alle so viele E kommt eine Abzweigung …
         abzweigungZufall: 100, // … plus zufällig 0 bis so viele E
         freieZielgerade: 90,   // Die letzten E vor der Oberfläche bleiben frei (Zielgerade ohne Hindernisse)
         tempoPlusProRunde: 0.1,// Wenn alle Welten geschafft sind, geht es wieder von vorn los –
                                // aber pro Runde um 10 % schneller (0.1 = +10 %)
+        mindestLuecke: 8,      // DURCHKOMM-GARANTIE: In jedem Streckenabschnitt bleibt
+                               // immer eine freie Lücke von mindestens so vielen E –
+                               // Steine können also NIE einen Weg komplett zubauen und
+                               // auch ein groß gewachsener Fisch klemmt nirgends fest.
     },
 
     /* ------------------------------------------------------------

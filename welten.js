@@ -409,6 +409,44 @@ const HOEHLEN_TIERE = ["🦑", "🐡", "🐙"];
 
 
 /* ----------------------------------------------------------------
+   EMOJI-VARIANTEN – mehr Abwechslung bei Steinen & Pflanzen!
+   ----------------------------------------------------------------
+   Jede Welt legt in "emojis" nur EIN Haupt-Bild für Felsen und
+   Pflanzen fest. Damit die Welt nicht wie eine Tapete aussieht,
+   bekommt jedes Hindernis beim Bauen zufällig eine VARIANTE aus
+   dieser Tabelle. Das Haupt-Bild steht mehrfach in der Liste,
+   damit es am häufigsten drankommt – die anderen sind die
+   Farbtupfer dazwischen.
+   ---------------------------------------------------------------- */
+const EMOJI_VARIANTEN = {
+    fels: {
+        "🪸": ["🪸", "🪸", "🪨", "🐚"],      // Korallen-Welten: dazwischen Steine & Muscheln
+        "🪨": ["🪨", "🪨", "🪨", "🗿", "🐚"], // Stein-Welten: mal ein Findling, mal eine Muschel
+        "🧊": ["🧊", "🧊", "🧊", "🪨"],       // Eis-Welten: ab und zu ein dunkler Fels im Eis
+        "⚓": ["⚓", "🪨", "🪨", "🛟"],       // Piraten-Bucht: Anker, Steine, alter Rettungsring
+        "🏛️": ["🏛️", "🏛️", "🏺", "🪨"],     // Versunkene Stadt: Säulen, Amphoren, Trümmer
+        "💎": ["💎", "💎", "🔮", "🪨"],       // Glitzer-Welten: Kristalle zwischen Felsen
+        "🪵": ["🪵", "🪵", "🪨", "🪵"],       // Fluss-Welten: Treibholz und runde Kiesel
+        "🐚": ["🐚", "🐚", "🪨", "🦪"],       // Muschel-Welten: Muscheln, Austern, Steine
+    },
+    pflanze: {
+        "🌿": ["🌿", "🌿", "🌱", "☘️"],       // Seegras in mehreren Grüntönen
+        "🪼": ["🪼", "🪼", "🪼", "🌿"],       // Quallen-Wälder mit etwas Seegras
+        "🌺": ["🌺", "🌺", "🌸", "🪷"],       // Blüten-Welten: Hibiskus, Kirschblüte, Lotus
+        "🌱": ["🌱", "🌱", "🌿", "☘️"],       // Junges Grün am Fluss- und Teichboden
+    },
+};
+
+// Sucht für ein Hindernis das passende Bild aus: das Haupt-Emoji der
+// Welt plus zufällige Varianten aus der Tabelle oben.
+function hindernisEmoji(welt, art) {
+    const haupt = welt.emojis[art];
+    const varianten = EMOJI_VARIANTEN[art] && EMOJI_VARIANTEN[art][haupt];
+    return varianten ? zufallAus(varianten) : haupt;
+}
+
+
+/* ----------------------------------------------------------------
    KLEINE ZUFALLS-HELFER
    ---------------------------------------------------------------- */
 
@@ -502,7 +540,8 @@ const MUSTER = {
         const torH = startH + 30;
         const rand = spielfeldBreite() / 2;
         const lueckeX = zufall(-rand * 0.55, rand * 0.55);  // Wo ist die Lücke?
-        const lueckeGroesse = 20;           // Wie breit ist die Lücke? (in E, fehlerverzeihend!)
+        const lueckeGroesse = 26;           // Wie breit ist die Lücke? (in E – schön
+                                            // fehlerverzeihend, auch für den GROSSEN Fisch!)
         const hindernisse = [];
 
         // Wand von links bis zur Lücke und von der Lücke bis rechts bauen:
@@ -587,10 +626,14 @@ const MUSTER = {
    ----------------------------------------------------------------
    Das Spielfeld wird in drei Spuren gedacht: LINKS, GERADEAUS,
    RECHTS. Bei jeder Abzweigung ist eine andere Kombination davon
-   offen – mal alle drei Gänge, mal nur links und rechts, mal nur
-   geradeaus … so sieht jede Abzweigung anders aus! Gesperrte
-   Spuren sind mit Felsen zugebaut (unten trichterförmig, damit der
-   Fisch sanft in einen offenen Gang geleitet wird).
+   offen – mal alle drei Gänge, mal nur zwei. WICHTIG: Es sind
+   immer MINDESTENS ZWEI Wege offen, denn eine Abzweigung soll eine
+   echte ENTSCHEIDUNG sein: links, geradeaus oder rechts? Über den
+   Gängen schweben Wegweiser-Symbole (zeichnet spiel.js), die schon
+   von Weitem zeigen, was einen wo erwartet – Garnelen-Weg 🦐,
+   Pflanzen-Weg 🌿 oder Höhlen-Eingang 🕳️. Gesperrte Spuren sind
+   mit Felsen zugebaut (unten trichterförmig, damit der Fisch sanft
+   in einen offenen Gang geleitet wird).
 
    Sobald sich der Fisch für einen Gang entschieden hat, schwimmen
    die ANDEREN Wege zur Seite davon und verschwinden (das macht
@@ -599,10 +642,18 @@ const MUSTER = {
    Einer der Wege kann ein HÖHLEN-EINGANG sein: Man erkennt ihn am
    dunklen Loch mit dem Steinrand. Wer hineinschwimmt, landet in
    einer dunklen Höhle (siehe HOEHLEN_MUSTER unten)!
+
+   erzwingeHoehle = true baut die PFLICHT-HÖHLEN-Abzweigung: Dann
+   führen ALLE offenen Wege in die Höhle (man sucht sich nur den
+   Eingang aus) – so hat garantiert jede Welt ihre Höhle.
+
+   Der Eingang selbst ist IMMER komplett frei: keine Steinreihe
+   quer darüber, die Rand-Steine sitzen ganz außen an den Spur-
+   Kanten. Eine zugebaute Höhle kann es so nicht mehr geben.
    ---------------------------------------------------------------- */
 let zonenNummer = 0;   // Fortlaufende Nummer, damit spiel.js die Teile einer Abzweigung wiederfindet
 
-function abzweigungBauen(startH) {
+function abzweigungBauen(startH, erzwingeHoehle = false) {
     const laenge = 95;
     const breite = spielfeldBreite();
     const rand = breite / 2;
@@ -611,9 +662,10 @@ function abzweigungBauen(startH) {
 
     // Welche Spuren sind diesmal offen? (0 = links, 1 = geradeaus, 2 = rechts)
     // Auf schmalen Handys nie alle drei gleichzeitig – das wäre zu eng.
+    // Immer mindestens ZWEI offene Wege: Abzweigen heißt entscheiden!
     const komboListe = schmal
-        ? [[0, 2], [0, 2], [0, 1], [1, 2], [1], [0], [2]]
-        : [[0, 1, 2], [0, 1, 2], [0, 2], [0, 1], [1, 2], [1], [0], [2]];
+        ? [[0, 2], [0, 2], [0, 1], [1, 2]]
+        : [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 2], [0, 1], [1, 2]];
     const offen = zufallAus(komboListe);
 
     const zonenId = ++zonenNummer;
@@ -621,7 +673,8 @@ function abzweigungBauen(startH) {
     const garnelen = [];
     const kanaele = [];
 
-    // Einer der offenen Wege wird (mit hoehle.chance) zum Höhlen-Eingang:
+    // Einer der offenen Wege wird (mit hoehle.chance) zum Höhlen-Eingang.
+    // Bei der Pflicht-Höhle führen ALLE offenen Wege hinein:
     const hoehlenWeg = Math.random() < KONFIG.hoehle.chance
         ? offen[zufallGanz(0, offen.length - 1)] : -1;
 
@@ -631,24 +684,20 @@ function abzweigungBauen(startH) {
         const mitte = (von + bis) / 2;
         let art;
 
-        if (spur === hoehlenWeg) {
+        if (erzwingeHoehle || spur === hoehlenWeg) {
             art = "hoehle";
-            // Der Höhlen-Eingang: kleine Steine säumen den Weg und über
-            // dem dunklen Loch liegt ein Steinbogen – die Lücke in der
-            // Mitte ist bewusst GROSS genug für jeden Fisch!
+            // Der Höhlen-Eingang: kleine Steine säumen den Weg – aber nur
+            // GANZ AUSSEN an den Spur-Kanten, die Mitte bleibt vollständig
+            // frei. Und über dem dunklen Loch liegt KEINE Steinreihe mehr:
+            // Der Eingang kann nie wieder zugebaut sein!
             // (Die Steine bekommen immer das 🪨-Emoji, egal in welcher Welt.)
             if (spurBreite >= 18) {
                 for (let h = startH + 35; h < startH + laenge - 8; h += 9) {
-                    hindernisse.push({ x: von + 1.5, h: h + zufall(-2, 2), r: 3.5,
+                    hindernisse.push({ x: von + 0.5, h: h + zufall(-2, 2), r: 3,
                                        art: "fels", emoji: "🪨", zonenId, kanal: spur });
-                    hindernisse.push({ x: bis - 1.5, h: h + zufall(-2, 2), r: 3.5,
+                    hindernisse.push({ x: bis - 0.5, h: h + zufall(-2, 2), r: 3,
                                        art: "fels", emoji: "🪨", zonenId, kanal: spur });
                 }
-            }
-            for (let dx = -spurBreite / 2 + 1.5; dx <= spurBreite / 2 - 1.5; dx += 5.5) {
-                if (Math.abs(dx) < 6.5) continue;   // Der Eingang bleibt schön frei
-                hindernisse.push({ x: mitte + dx, h: startH + laenge - 5 + zufall(-1.5, 1.5),
-                                   r: 3.5, art: "fels", emoji: "🪨", zonenId, kanal: spur });
             }
         } else if (Math.random() < 0.6) {
             art = "garnelen";
@@ -668,12 +717,14 @@ function abzweigungBauen(startH) {
     }
 
     // Trennwände zwischen zwei NEBENEINANDERLIEGENDEN offenen Gängen
-    // (sie gehören zu beiden Nachbarn – deshalb merken sie sich beide):
+    // (sie gehören zu beiden Nachbarn – deshalb merken sie sich beide).
+    // Die Wand-Steine sind bewusst schlank (r = 4) und wackeln kaum zur
+    // Seite, damit in jedem Gang genug Platz für den GROSSEN Fisch bleibt:
     for (let i = 0; i < 2; i++) {
         if (!offen.includes(i) || !offen.includes(i + 1)) continue;
         const wandX = -rand + (i + 1) * spurBreite;
         for (let h = startH + 14; h < startH + laenge - 4; h += 8.5) {
-            hindernisse.push({ x: wandX + zufall(-1.2, 1.2), h: h, r: 4.5,
+            hindernisse.push({ x: wandX + zufall(-0.8, 0.8), h: h, r: 4,
                                art: "fels", zonenId, kanal: -2, nachbarn: [i, i + 1] });
         }
     }
@@ -704,9 +755,11 @@ function abzweigungBauen(startH) {
     }
 
     // Die Zone merkt sich, wo die Abzweigung ist – spiel.js prüft dann,
-    // welchen Weg der Fisch gewählt hat:
+    // welchen Weg der Fisch gewählt hat. "hinweisGezeigt" steuert die
+    // einmalige "Wähle deinen Weg!"-Ankündigung beim Heranschwimmen:
     const zone = { id: zonenId, vonH: startH, bisH: startH + laenge,
-                   kanaele: kanaele, entschieden: false, gewaehlt: -1 };
+                   kanaele: kanaele, entschieden: false, gewaehlt: -1,
+                   hinweisGezeigt: false };
     return { laenge, hindernisse, garnelen, zone };
 }
 
